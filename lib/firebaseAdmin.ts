@@ -55,9 +55,38 @@ export function initializeFirebaseAdmin() {
         auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
       }
     } else {
-      throw new Error(
-        'Firebase Admin credentials not found. Set FIREBASE_SERVICE_ACCOUNT_KEY or individual FIREBASE_ADMIN_* variables.'
+      // No credentials found. Instead of throwing (which breaks Next.js build
+      // if run in an environment where secrets aren't available at build time),
+      // return a lightweight stub that prevents immediate crashes during build.
+      console.warn(
+        '⚠️ Firebase Admin credentials not found. Continuing without admin initialization (build-time).'
       )
+
+      const stubAdmin: any = {
+        apps: [],
+        initializeApp: () => {
+          /* no-op */
+        },
+        credential: {
+          cert: () => {
+            throw new Error(
+              'Firebase Admin credential not available in this environment.'
+            )
+          },
+        },
+        auth: () => {
+          throw new Error(
+            'Firebase Admin not initialized. This operation requires server-side credentials.'
+          )
+        },
+        firestore: () => {
+          throw new Error(
+            'Firebase Admin not initialized. This operation requires server-side credentials.'
+          )
+        },
+      }
+
+      return stubAdmin
     }
 
     admin.initializeApp({
