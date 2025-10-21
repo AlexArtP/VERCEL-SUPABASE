@@ -1,0 +1,93 @@
+name: Deploy to Firebase Hosting (agendas-cecosamlautaro)
+
+on:
+  push:
+    branches:
+      - main
+  # Allow manual runs from the Actions UI
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+  # NOTE: Usaremos el secret `FIREBASE_SERVICE_ACCOUNT` (JSON de cuenta de servicio)
+  # para autenticación estable y segura durante el build/deploy. El workflow
+  # escribe el JSON a /tmp/firebase-service-account.json y usa `firebase-tools`
+  # para ejecutar `firebase deploy`. Evitamos `FIREBASE_TOKEN` por ser menos seguro
+  # y propenso a caducidad.
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next
+        run: npx next build
+      - name: Show presence of Firebase service account (debug)
+        run: |
+          if [ -z "${FIREBASE_SERVICE_ACCOUNT_KEY}" ]; then
+            echo "FIREBASE_SERVICE_ACCOUNT_KEY: NOT present"
+          else
+            echo "FIREBASE_SERVICE_ACCOUNT_KEY: present"
+          fi
+      - name: Prepare static output (if any)
+        run: |
+          # With `output: 'export'` Next may produce static export under .next/output/export
+          if [ -d ".next/output/export" ]; then
+            rm -rf out || true
+            cp -a .next/output/export out
+            echo "Copied .next/output/export -> out/"
+          else
+            echo "No static export found under .next/output/export; assuming build artifacts are in place or using server build."
+          fi
+
+      - name: Validate Firebase service account secret
+        run: |
+          echo "Validating Firebase service account secret..."
+          if [ -z "${FIREBASE_SERVICE_ACCOUNT_KEY}" ]; then
+            echo "ERROR: FIREBASE_SERVICE_ACCOUNT_KEY not provided. Please configure the 'FIREBASE_SERVICE_ACCOUNT' secret in repository settings."
+            exit 1
+          fi
+
+      # Deploy usando cuenta de servicio (requerido)
+      - name: Setup Firebase service account file
+        run: |
+          echo "Setting up Firebase service account credentials..."
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-service-account.json
+          chmod 600 /tmp/firebase-service-account.json
+          # Verify JSON is valid
+          if ! jq empty /tmp/firebase-service-account.json 2>/dev/null; then
+            echo "ERROR: Invalid JSON in service account credentials"
+            echo "First 100 chars: $(head -c 100 /tmp/firebase-service-account.json)"
+            exit 1
+          fi
+          echo "✅ Firebase service account file created and validated"
+
+      - name: Deploy Firestore Rules
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-service-account.json
+        run: |
+          echo "📋 Deploying Firestore rules..."
+          npx firebase-tools deploy --only firestore:rules --project agendacecosam --debug 2>&1 | tail -50
+
+      - name: Deploy to Firebase Hosting (using firebase-tools + service account)
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-service-account.json
+        run: |
+          echo "🚀 Starting Firebase deployment..."
+          echo "Service account file path: $GOOGLE_APPLICATION_CREDENTIALS"
+          echo "Service account file exists: $([ -f $GOOGLE_APPLICATION_CREDENTIALS ] && echo 'YES' || echo 'NO')"
+          echo "Firebase project: agendacecosam"
+          echo "Hosting target: agendas-cecosamlautaro"
+          echo ""
+          npx firebase-tools deploy --only hosting:agendas-cecosamlautaro --project agendacecosam --debug 2>&1 | head -200

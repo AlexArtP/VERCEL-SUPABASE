@@ -1,0 +1,16 @@
+{
+  "projects": {
+    "default": "agendacecosam",
+    "agendacecosam": "agendacecosam"
+  },
+  "targets": {
+    "agendacecosam": {
+      "hosting": {
+        "agendas-cecosamlautaro": [
+          "agendacecosamlautaro"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

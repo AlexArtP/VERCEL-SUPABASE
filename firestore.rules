@@ -1,0 +1,223 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================================================
+    // FUNCIONES AUXILIARES
+    // ============================================================================
+    
+    // Verificar si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Verificar si el usuario es admin LEYENDO desde el documento en Firestore
+    // Versión segura que maneja documentos inexistentes
+    function isAdminFromFirestore() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('esAdmin', false) == true;
+    }
+    
+    // Verificar si es admin (alternativa sin lectura de documento - para permisos públicos)
+    // Se usa cuando el documento de usuario podría no existir
+    function isAdminSimple() {
+      // Esta función se usaría si tuviéramos claims, pero por ahora se usa la anterior
+      return isAdminFromFirestore();
+    }
+    
+    // Obtener el rol del usuario desde Firestore (con manejo de errores)
+    function getUserRole() {
+      return isAuthenticated() ? get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('rol', null) : null;
+    }
+
+    // Verificar si usuario es profesional
+    function isProfesional() {
+      return getUserRole() == 'profesional';
+    }
+
+    // Verificar si usuario es administrativo
+    function isAdministrativo() {
+      return getUserRole() == 'administrativo';
+    }
+
+    // Verificar si usuario es otros
+    function isOtros() {
+      return getUserRole() == 'otros';
+    }
+    
+    // ============================================================================
+    // COLECCIÓN: usuarios
+    // Perfiles de usuarios registrados
+    // ============================================================================
+    
+    match /usuarios/{userId} {
+      // NOTA IMPORTANTE: Esta regla "allow get" permite que la función isAdminFromFirestore() 
+      // lea el documento del usuario cuando se evalúan otras reglas
+      allow get: if true;
+      
+      // Leer:
+      // - Cualquier usuario autenticado puede leer su propio documento
+      // - Cualquier usuario autenticado puede leer lista de profesionales activos
+      // - Esto es necesario para que los usuarios vean el dropdown del calendario
+      allow read: if isAuthenticated() && (request.auth.uid == userId || resource.data.get('rol') == 'profesional');
+      
+      // Crear: 
+      // - Cualquiera puede crear (para init-demo-admin)
+      // - Solo autenticados pueden crear su propio perfil
+      allow create: if true;
+      
+      // Actualizar: 
+      // - Permitir actualización del usuario demo sin restricción (para init)
+      // - El usuario puede actualizar su propio perfil (excepto esAdmin)
+      // - Solo admin puede cambiar esAdmin
+      allow update: if userId == 'demo-admin-juan' ||
+                       (isAuthenticated() && request.auth.uid == userId && 
+                        !('esAdmin' in request.resource.data.diff(resource.data).affectedKeys())) ||
+                       isAdminFromFirestore();
+      
+      // Eliminar: solo admin
+      allow delete: if isAdminFromFirestore();
+    }
+    
+    // ============================================================================
+    // COLECCIÓN: solicitudRegistro
+    // Solicitudes de registro pendientes (nuevo formato)
+    // ============================================================================
+    
+    match /solicitudRegistro/{solicitudId} {
+      // Leer: PÚBLICO (necesario para listeners de admin)
+      allow read: if true;
+      
+      // Crear: CUALQUIERA puede crear (público, sin autenticación, para registro)
+      allow create: if true;
+      
+      // Actualizar: SOLO ADMIN puede cambiar estado (aceptar/rechazar)
+      allow update: if isAdminFromFirestore();
+      
+      // Eliminar: Solo admin
+      allow delete: if isAdminFromFirestore();
+    }
+    
+    // ============================================================================
+    // COLECCIÓN: solicitudes
+    // Solicitudes de registro pendientes
+    // ============================================================================
+    
+    match /solicitudes/{solicitudId} {
+      // Leer: Permitir lectura pública (necesario para listeners de admin)
+      allow read: if true;
+      
+      // Crear: CUALQUIERA puede crear (público, sin autenticación)
+      allow create: if true;
+      
+      // Actualizar: SOLO ADMIN puede cambiar estado (aceptar/rechazar)
+      allow update: if isAdminFromFirestore();
+      
+      // Eliminar: Solo admin
+      allow delete: if isAdminFromFirestore();
+    }
+    
+    // ============================================================================
+    // COLECCIÓN: citas
+    // Agendamientos/Citas
+    // ============================================================================
+    
+    match /citas/{citaId} {
+      // Leer: PÚBLICO para que los listeners funcionen correctamente
+      allow read: if true;
+      
+  // Crear: temporalmente permitir creación pública sin restricciones
+  allow create: if true;
+      
+      // Actualizar:
+      // - Administrativo: puede editar cualquier cita
+      allow update: if isAdministrativo();
+      
+      // Eliminar:
+      // - Administrativo: puede eliminar cualquier cita
+      allow delete: if isAdministrativo();
+    }
+    
+    // ============================================================================
+    // COLECCIÓN: modulos
+    // Módulos de sistemas creados por profesionales/administrativos
+    // ============================================================================
+    
+    match /modulos/{moduloId} {
+      // Leer: TODOS LOS AUTENTICADOS pueden leer módulos
+      allow read: if isAuthenticated();
+      
+  // Crear: temporalmente permitir creación pública sin restricciones
+  allow create: if true;
+      
+      // Actualizar:
+      // - Administrativo: puede editar cualquier módulo
+      // - Profesional: SOLO su propio módulo (profesionalId == request.auth.uid)
+      allow update: if isAdministrativo();
+      
+      // Eliminar: 
+      // - Administrativo: puede eliminar cualquier módulo
+      allow delete: if isAdministrativo();
+    }
+    
+    // ============================================================================
+    // COLECCIÓN: plantillas
+    // Plantillas de citas creadas por profesionales
+    // ============================================================================
+    
+    match /plantillas/{plantillaId} {
+      // Leer: autenticados (todos pueden ver las plantillas disponibles)
+      allow read: if isAuthenticated();
+      
+      // Crear: SOLO profesionales y administrativo
+      allow create: if isAuthenticated() && 
+                       (isAdministrativo() || isProfesional());
+      
+      // Actualizar: profesional dueño o admin
+      allow update: if isAdministrativo() ||
+                       (isAuthenticated() &&
+                        (resource.data.profesionalId == request.auth.uid ||
+                         resource.data.createdBy == request.auth.uid));
+      
+      // Eliminar: admin o dueño de la plantilla
+      allow delete: if isAdministrativo() ||
+                       (isAuthenticated() &&
+                        (resource.data.profesionalId == request.auth.uid ||
+                         resource.data.createdBy == request.auth.uid));
+    }
+    
+    // ============================================================================
+    // COLECCIÓN: pacientes
+    // Información de pacientes registrados
+    // ============================================================================
+    
+    match /pacientes/{pacienteId} {
+      // Leer: PÚBLICO (cualquier autenticado puede buscar pacientes)
+      // En un futuro podría restringirse a profesionales/admin que tiene citas con el paciente
+      allow read: if isAuthenticated();
+      
+      // Crear: SOLO autenticados (profesionales y administrativo crean registros de pacientes)
+      allow create: if isAuthenticated() && (isProfesional() || isAdministrativo());
+      
+      // Actualizar: 
+      // - Administrativo: puede editar cualquier paciente
+      // - El paciente dueño (pacienteId == request.auth.uid): puede editar su propia info
+      // - Profesionales: NO pueden editar info de pacientes
+      allow update: if isAdministrativo() ||
+                       (isAuthenticated() && request.auth.uid == pacienteId);
+      
+      // Eliminar: SOLO admin
+      allow delete: if isAdministrativo();
+    }
+    
+    // ============================================================================
+    // COLECCIÓN: config
+    // Configuración
+    // ============================================================================
+    
+    match /config/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminFromFirestore();
+    }
+  }
+}

@@ -1,0 +1,1643 @@
+"use client"
+
+import { useEffect, useRef, useState } from "react"
+import FullCalendar from "@fullcalendar/react"
+import timeGridPlugin from "@fullcalendar/timegrid"
+import dayGridPlugin from "@fullcalendar/daygrid"
+import interactionPlugin from "@fullcalendar/interaction"
+import type { Modulo, Cita, Paciente, PlantillaModulo } from "@/lib/demoData"
+import { X, Plus, Edit, Trash2, UserPlus, Check, AlertCircle } from "lucide-react"
+import { ConfirmModal } from "./ConfirmAlertModals"
+import { DEMO_DATA } from "@/lib/demoData"
+import { ModuloListModal } from "./ModuloListModal"
+import { PlantillaListModal } from "./PlantillaListModal"
+import { useFirestoreProfesionales } from "@/lib/useFirestoreProfesionales"
+import { useFirestoreCitas } from "@/lib/useFirestoreCitas"
+
+function eventContent(arg: any) {
+  const event = arg?.event
+  const title = event?._def?.title ?? ""
+  if (event?.extendedProps?.type === "cita") {
+    const cita = event.extendedProps.data as Cita
+    let tipoModulo = ""
+    if (cita.tipo) tipoModulo = cita.tipo.split(" - ")[0].trim()
+    const pacienteRun = ""
+    const pacienteNombreCompleto = cita.pacienteNombre
+    return (
+      <div className="relative w-full h-full flex flex-col justify-between text-xs">
+        <span className="font-semibold block truncate">{tipoModulo}</span>
+        <span className="block truncate">{pacienteNombreCompleto}</span>
+        <span className="block text-gray-500">{cita.hora}</span>
+        <span className="absolute top-1 right-1">
+          {cita?.esSobrecupo ? (
+            <span className="px-1.5 py-0.5 text-xs rounded bg-red-500 text-white flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+            </span>
+          ) : cita?.estado === 'confirmada' ? (
+            <span className="px-1.5 py-0.5 text-xs rounded bg-emerald-500 text-white flex items-center gap-1">
+              <Check className="w-3 h-3" />
+            </span>
+          ) : cita?.estado === 'pendiente' ? (
+            <span className="px-1.5 py-0.5 text-xs rounded bg-yellow-400 text-white flex items-center gap-1">P</span>
+          ) : null}
+        </span>
+      </div>
+    )
+  }
+  if (event?.extendedProps?.type === "modulo") {
+    const modulo = event.extendedProps.data as Modulo;
+    // Acceso a window.selectedModulos para saber si hay selección múltiple
+    let isSelected = false;
+    if (typeof window !== "undefined" && Array.isArray((window as any).selectedModulos)) {
+      isSelected = (window as any).selectedModulos.includes(modulo.id);
+    }
+    return (
+      <div className="w-full h-full flex flex-col justify-between text-xs relative">
+        {/* Checkbox de selección múltiple interactivo */}
+        {Array.isArray((window as any).selectedModulos) && (window as any).selectedModulos.length > 0 && (
+          <span
+            className="absolute z-20 bg-white bg-opacity-90 rounded shadow"
+            style={{ top: 2, left: 2, width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            onClick={e => {
+              e.stopPropagation();
+              if (typeof window !== 'undefined' && window.dispatchEvent) {
+                const evt = new CustomEvent('toggleModuloCheck', { detail: modulo.id });
+                window.dispatchEvent(evt);
+                // Seleccionar el módulo inmediatamente
+                const evt2 = new CustomEvent('selectModuloFromCheck', { detail: modulo });
+                window.dispatchEvent(evt2);
+              }
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={isSelected}
+              readOnly
+              className="w-4 h-4 align-middle cursor-pointer"
+              style={{ pointerEvents: 'auto', margin: 0 }}
+              tabIndex={-1}
+            />
+          </span>
+        )}
+        <span className="font-semibold pr-6 block truncate">{title}</span>
+        {modulo.estamento && <span className="truncate font-semibold" style={{ color: '#222', background: 'rgba(255,255,255,0.7)', borderRadius: '4px', padding: '0 4px', display: 'inline-block', maxWidth: '100%' }}>{modulo.estamento}</span>}
+        {modulo.observaciones && <span className="text-gray-400 truncate italic">{modulo.observaciones}</span>}
+      </div>
+    );
+  }
+  return <span>{title}</span>
+}
+
+interface CalendarViewProps {
+  modulos: Modulo[]
+  citas: Cita[]
+  pacientes: Paciente[]
+  currentUser: any
+  onModuloCreate: (modulo: Omit<Modulo, "id">) => void
+  onModuloUpdate: (id: number, modulo: Partial<Modulo>) => void
+  onModuloDelete: (ids: number[]) => void
+  onCitaCreate: (cita: Omit<Cita, "id">) => void
+  onCitaUpdate: (id: number, cita: Partial<Cita>) => void
+  onCitaDelete: (id: number) => void
+}
+
+export function CalendarView(props: CalendarViewProps) {
+  // Estilos para deshabilitar y colorear el domingo
+  // Puedes mover esto a un archivo CSS si lo prefieres
+  const style = `
+    .fc-domingo-disabled, .fc-day-sun, .fc-col-header-cell.fc-day-sun {
+      background: #ffe4ef !important;
+      pointer-events: none !important;
+      opacity: 0.7;
+    }
+    .fc-timegrid-col.fc-day-sun {
+      background: #ffe4ef !important;
+      pointer-events: none !important;
+      opacity: 0.7;
+    }
+    /* Permitir que los tooltips y popovers de FullCalendar salgan del contenedor */
+    .fc {
+      overflow: visible !important;
+    }
+    .fc-popover {
+      position: fixed !important;
+      z-index: 9999 !important;
+      overflow: visible !important;
+    }
+    .fc-popover-body {
+      overflow: visible !important;
+      max-height: none !important;
+    }
+    /* Contenedor debe permitir popovers */
+    .fc-daygrid-dot-container,
+    .fc-timegrid {
+      position: relative;
+    }
+  `;
+  // Seleccionar el módulo inmediatamente al hacer clic en el checklist
+  useEffect(() => {
+    function handleSelectModuloFromCheck(e: any) {
+      setSelectedModulo(e.detail);
+    }
+    window.addEventListener('selectModuloFromCheck', handleSelectModuloFromCheck);
+    return () => window.removeEventListener('selectModuloFromCheck', handleSelectModuloFromCheck);
+  }, []);
+  // Permitir que el checkbox de selección múltiple sea interactivo
+  useEffect(() => {
+    function handleToggleModuloCheck(e: any) {
+      const id = e.detail;
+      setSelectedModulos((prev) => prev.includes(id) ? prev.filter((mid) => mid !== id) : [...prev, id]);
+    }
+    window.addEventListener('toggleModuloCheck', handleToggleModuloCheck);
+    return () => window.removeEventListener('toggleModuloCheck', handleToggleModuloCheck);
+  }, []);
+  const {
+    modulos,
+    citas,
+    pacientes,
+    currentUser,
+    onModuloCreate,
+    onModuloUpdate,
+    onModuloDelete,
+    onCitaCreate,
+    onCitaUpdate,
+    onCitaDelete,
+  } = props
+
+  // Declarar selectedModulos y sincronizar con window al inicio
+  const [selectedModulos, setSelectedModulos] = useState<number[]>([]);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any).selectedModulos = selectedModulos;
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        (window as any).selectedModulos = [];
+      }
+    };
+  }, [selectedModulos]);
+
+  const profesionales = DEMO_DATA.usuarios.filter((u: any) => u.rol === "profesional")
+  const calendarRef = useRef<any>(null)
+  const [selectedProfesionalId, setSelectedProfesionalId] = useState<string | null>(null)
+
+  // 🔥 NUEVO: Obtener profesionales de Firestore
+  const { profesionales: profesionalesFirestore, loading: profesionalesLoading, error: profesionalesError } = useFirestoreProfesionales()
+  const { citas: citasFirestore, loading: citasLoading, error: citasError } = useFirestoreCitas(selectedProfesionalId || null)
+
+  // ✅ Usar SIEMPRE profesionales de Firestore (no DEMO)
+  const profesionalesActuales = profesionalesFirestore
+  
+  const selectedProfesional = selectedProfesionalId
+    ? (profesionalesActuales.find((u: any) => u.id === selectedProfesionalId) || null)
+    : null
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; event: any; type: "modulo" | "cita" } | null>(null)
+  const [showModuloModal, setShowModuloModal] = useState(false)
+  const [showCitaModal, setShowCitaModal] = useState(false)
+  const [sobrecupoMode, setSobrecupoMode] = useState(false)
+  const [selectedModulo, setSelectedModulo] = useState<Modulo | null>(null)
+  const [slotInfo, setSlotInfo] = useState<{ start: Date; end: Date; fecha: string; horaInicio: string; horaFin: string } | null>(null)
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; cita?: Cita; modulo?: Modulo } | null>(null)
+  const tooltipTimeout = useRef<NodeJS.Timeout | null>(null)
+  const [liveSelection, setLiveSelection] = useState<{ open: boolean; x: number; y: number; fecha?: string; horaInicio?: string; horaFin?: string; minutes?: number } | null>(null)
+  const [slotTooltip, setSlotTooltip] = useState<{ x: number; y: number; time: string } | null>(null)
+  const selectingRef = useRef<{ startDate?: Date; startY?: number; colIndex?: number; dateStr?: string } | null>(null)
+  const slotTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  // limpiar selectingRef cuando se abre modal de cita (evita que mouseup posterior actúe)
+  useEffect(() => {
+    if (showCitaModal) selectingRef.current = null
+  }, [showCitaModal])
+  const [citaAEliminar, setCitaAEliminar] = useState<{ id: number } | null>(null)
+  const [moduloAEliminar, setModuloAEliminar] = useState<number | null>(null)
+  const [showGestionModulosModal, setShowGestionModulosModal] = useState(false)
+  const [showPlantillaListModal, setShowPlantillaListModal] = useState(false)
+  const [editingCita, setEditingCita] = useState<Cita | null>(null)
+  const [openModuloForEdit, setOpenModuloForEdit] = useState(false)
+  const [moduloExistenteId, setModuloExistenteId] = useState<number | null>(null)
+  const [editingPlantilla, setEditingPlantilla] = useState<PlantillaModulo | null>(null)
+  const [showPlantillaEditModal, setShowPlantillaEditModal] = useState(false)
+  const [plantillaConfirmPropagation, setPlantillaConfirmPropagation] = useState<{ open: boolean; plantilla: PlantillaModulo; instanceCount: number } | null>(null)
+  const [confirmEliminarSeleccionados, setConfirmEliminarSeleccionados] = useState(false)
+  const [confirmEliminarSemana, setConfirmEliminarSemana] = useState<{ open: boolean; ids: number[] } | null>(null)
+  // Modal para copiar estructura de semana
+  const [copiarSemanaModal, setCopiarSemanaModal] = useState<{ open: boolean; originMonday: Date; profesionalId: number } | null>(null)
+  const [weekPickerMonth, setWeekPickerMonth] = useState<Date>(new Date())
+  // Selecciones de semanas destino (ISO YYYY-MM-DD del lunes de cada semana)
+  const [copiarSemanaTargets, setCopiarSemanaTargets] = useState<string[]>([])
+  // Modal y selecciones para eliminar módulos por semana
+  const [eliminarSemanaModal, setEliminarSemanaModal] = useState<{ open: boolean; profesionalId: number } | null>(null)
+  const [eliminarSemanaTargets, setEliminarSemanaTargets] = useState<string[]>([])
+  // Preview de módulos excluidos antes de confirmar eliminación masiva
+  const [excludedPreview, setExcludedPreview] = useState<{ open: boolean; excluded: { id: number; tipo?: string; fecha: string; horaInicio: string }[]; toDelete: number[] } | null>(null)
+
+  const plantillaSeleccionada = moduloExistenteId != null ? (DEMO_DATA.plantillas.find((p: PlantillaModulo) => p.id === moduloExistenteId) ?? null) : null
+
+  function normalizeCitaToModulo(cita: Cita, modulo: Modulo | undefined) {
+    let horaInicio = cita.hora
+    let horaFin = modulo ? modulo.horaFin : cita.hora
+    if (modulo) {
+      if (horaInicio < modulo.horaInicio) horaInicio = modulo.horaInicio
+      if (horaFin > modulo.horaFin) horaFin = modulo.horaFin
+    }
+    return { horaInicio, horaFin }
+  }
+
+  const modulosFiltrados = selectedProfesionalId ? modulos.filter((m) => String(m.profesionalId) === selectedProfesionalId) : modulos
+  const citasFiltradas = selectedProfesionalId ? citas.filter((c) => String(c.profesionalId) === selectedProfesionalId) : citas
+  const moduloIdsConCita = new Set(citasFiltradas.map((c) => c.moduloId))
+
+  const events = [
+    ...modulosFiltrados.filter((m) => !moduloIdsConCita.has(m.id)).map((modulo) => ({
+      id: `modulo-${modulo.id}`,
+      title: `${modulo.tipo} - ${modulo.profesionalNombre}`,
+      start: `${modulo.fecha}T${modulo.horaInicio}`,
+      end: `${modulo.fecha}T${modulo.horaFin}`,
+      backgroundColor: modulo.color,
+      borderColor: modulo.color,
+      extendedProps: { type: "modulo", data: modulo },
+      editable: true,
+      durationEditable: true,
+    })),
+    ...citasFiltradas.map((cita) => {
+      const modulo = modulosFiltrados.find((m) => m.id === cita.moduloId)
+      const { horaInicio, horaFin } = normalizeCitaToModulo(cita, modulo)
+      const paciente = pacientes.find((p) => p.id === cita.pacienteId)
+      const pacienteRun = paciente?.run || ""
+      const title = `${cita.pacienteNombre} - ${pacienteRun}`
+      // color según estado: pendiente -> amarillo, sobrecupo -> rojo, confirmado -> verde
+      const bg = cita.estado === 'pendiente' ? '#f59e0b' : (cita.esSobrecupo ? '#ef4444' : '#10b981')
+      const border = cita.estado === 'pendiente' ? '#b45309' : (cita.esSobrecupo ? '#dc2626' : '#059669')
+      return {
+        id: `cita-${cita.id}`,
+        title,
+        start: `${cita.fecha}T${horaInicio}`,
+        end: `${cita.fecha}T${horaFin}`,
+        backgroundColor: bg,
+        borderColor: border,
+        extendedProps: { type: "cita", data: cita },
+        editable: false,
+        display: "block",
+        classNames: cita.esSobrecupo ? ["cita-sobrecupo"] : ["cita-agendada"],
+      }
+    }),
+  ]
+
+  const handleEventDrop = (info: any) => {
+    const { event } = info
+    const type = event.extendedProps.type
+    const data = event.extendedProps.data
+    if (type === "modulo") {
+      const newStart = event.start.toTimeString().slice(0, 5)
+      const newEnd = event.end.toTimeString().slice(0, 5)
+      onModuloUpdate(data.id, { horaInicio: newStart, horaFin: newEnd })
+    }
+    if (type === "cita") {
+      const newStart = event.start.toTimeString().slice(0, 5)
+      const newEnd = event.end ? event.end.toTimeString().slice(0, 5) : newStart
+      const moduloDestino = modulos.find((m) => {
+        return (
+          m.fecha === event.start.toISOString().slice(0, 10) &&
+          newStart >= m.horaInicio &&
+          newEnd <= m.horaFin
+        )
+      })
+      if (moduloDestino) {
+        let horaCita = newStart
+        if (horaCita < moduloDestino.horaInicio) horaCita = moduloDestino.horaInicio
+        if (horaCita > moduloDestino.horaFin) horaCita = moduloDestino.horaFin
+        onCitaUpdate(data.id, { moduloId: moduloDestino.id, fecha: moduloDestino.fecha, hora: horaCita })
+      } else {
+        info.revert()
+      }
+    }
+  }
+
+  const handleEventResize = (info: any) => {
+    const { event } = info
+    const type = event.extendedProps.type
+    const data = event.extendedProps.data
+    if (type === "modulo") {
+      const newEnd = event.end.toTimeString().slice(0, 5)
+      const duration = Math.round((event.end.getTime() - event.start.getTime()) / 60000)
+      onModuloUpdate(data.id, { horaFin: newEnd, duracion: duration })
+    }
+  }
+
+  const handleEventMouseEnter = (info: any) => {
+    const type = info.event.extendedProps.type
+    if (type === "cita") {
+      const cita = info.event.extendedProps.data
+      tooltipTimeout.current = setTimeout(() => {
+        setTooltip({ x: info.jsEvent.clientX, y: info.jsEvent.clientY, cita })
+      }, 1000)
+    }
+    if (type === "modulo") {
+      const modulo = info.event.extendedProps.data as Modulo
+      // Mostrar tooltip solo si el módulo está vacío (no tiene cita asignada)
+      if (!moduloIdsConCita.has(modulo.id)) {
+        tooltipTimeout.current = setTimeout(() => {
+          setTooltip({ x: info.jsEvent.clientX, y: info.jsEvent.clientY, modulo })
+        }, 600)
+      }
+    }
+  }
+  const handleEventMouseLeave = () => { if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current); setTooltip(null) }
+
+  // Utilidades de fechas
+  const toISODate = (d: Date) => d.toISOString().slice(0, 10)
+  const getMonday = (d: Date) => {
+    const x = new Date(d)
+    const day = x.getDay() // 0=Domingo, 1=Lunes
+    const diffToMonday = (day + 6) % 7
+    x.setDate(x.getDate() - diffToMonday)
+    x.setHours(0, 0, 0, 0)
+    return x
+  }
+  const daysBetween = (a: Date, b: Date) => {
+    const ms = 24 * 60 * 60 * 1000
+    const aa = new Date(a); aa.setHours(0, 0, 0, 0)
+    const bb = new Date(b); bb.setHours(0, 0, 0, 0)
+    return Math.round((bb.getTime() - aa.getTime()) / ms)
+  }
+  const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x }
+  const startOfMonth = (d: Date) => { const x = new Date(d); x.setDate(1); x.setHours(0,0,0,0); return x }
+  const endOfMonth = (d: Date) => { const x = new Date(d); x.setMonth(x.getMonth()+1, 0); x.setHours(23,59,59,999); return x }
+  const getWeekNumber = (d: Date) => {
+    // ISO week number: semana que comienza en lunes
+    const tmp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+    // Jueves determina la semana ISO
+    const dayNum = (tmp.getUTCDay() + 6) % 7
+    tmp.setUTCDate(tmp.getUTCDate() - dayNum + 3)
+    const firstThursday = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 4))
+    const diff = (tmp.getTime() - firstThursday.getTime()) / (7 * 24 * 3600 * 1000)
+    return 1 + Math.floor(diff)
+  }
+
+  // Copiar estructura de módulos de una semana a otra (por profesional)
+  const copyWeekStructure = (fromMonday: Date, toMonday: Date, profesionalId: number) => {
+    const created: Omit<Modulo, "id">[] = []
+    const fromSunday = new Date(fromMonday)
+    fromSunday.setDate(fromMonday.getDate() + 6)
+
+    // Todos los módulos del profesional dentro de la semana [fromMonday..fromSunday]
+    const weekMods = modulos.filter((m) => {
+      if (m.profesionalId !== profesionalId) return false
+      const f = new Date(m.fecha + 'T00:00:00')
+      return f >= fromMonday && f <= fromSunday
+    })
+
+    for (const m of weekMods) {
+      const baseTipo = (m.tipo || '').split(' - ')[0].trim()
+      const f = new Date(m.fecha + 'T00:00:00')
+      const offset = daysBetween(fromMonday, f)
+      const target = new Date(toMonday)
+      target.setDate(toMonday.getDate() + offset)
+      // Saltar domingo destino si existiera
+      if (target.getDay() === 0) continue
+
+      const targetISO = toISODate(target)
+
+      // Evitar duplicados exactos en destino (mismo profesional, fecha, hora y tipo base)
+      const exists = modulos.some((mm) => {
+        if (mm.profesionalId !== profesionalId) return false
+        if (mm.fecha !== targetISO) return false
+        if (mm.horaInicio !== m.horaInicio || mm.horaFin !== m.horaFin) return false
+        const baseTipoExisting = (mm.tipo || '').split(' - ')[0].trim()
+        return baseTipoExisting === baseTipo
+      })
+      if (exists) continue
+
+      const nuevo: Omit<Modulo, "id"> = {
+        tipo: baseTipo,
+        profesionalId: m.profesionalId,
+        profesionalNombre: m.profesionalNombre,
+        fecha: targetISO,
+        horaInicio: m.horaInicio,
+        horaFin: m.horaFin,
+        duracion: m.duracion,
+        disponible: true,
+        color: m.color,
+        estamento: m.estamento,
+        observaciones: m.observaciones || "",
+      }
+      created.push(nuevo)
+    }
+
+    // Crear en lote
+    created.forEach(onModuloCreate)
+    return created.length
+  }
+
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null)
+    document.addEventListener("click", handleClick)
+    // Forzar que la semana inicie en lunes por si el locale o configuración lo sobrescribe
+    const api = calendarRef.current?.getApi?.()
+    if (api?.setOption) {
+      try { api.setOption('firstDay', 1) } catch {}
+    }
+    return () => document.removeEventListener("click", handleClick)
+  }, [])
+
+  // Mouse handlers para selección "en vivo" sobre timeGrid
+  useEffect(() => {
+    const container = document.querySelector('.fc-timegrid') as HTMLElement | null
+    if (!container) return
+
+    const slotMin = 8 * 60 // coincidente con slotMinTime "08:00"
+    const slotMax = 20 * 60 // "20:00"
+    const totalMinutes = slotMax - slotMin
+
+    function getColIndexAndDateFromEvent(ev: MouseEvent) {
+      // columnas de day/timegrid
+  const cols = container ? Array.from(container.querySelectorAll('.fc-timegrid-col')) as HTMLElement[] : []
+      const headerCells = Array.from(document.querySelectorAll('.fc-col-header-cell')) as HTMLElement[]
+      for (let i = 0; i < cols.length; i++) {
+        const rect = cols[i].getBoundingClientRect()
+        if (ev.clientX >= rect.left && ev.clientX <= rect.right) {
+          const dateStr = headerCells[i]?.getAttribute('data-date') || undefined
+          return { index: i, dateStr, cols, headerCells }
+        }
+      }
+      return { index: -1, dateStr: undefined, cols: [], headerCells: [] }
+    }
+
+    function yToTimeByIndex(cols: HTMLElement[], headerCells: HTMLElement[], index: number, y: number) {
+      const colEl = cols[index]
+      if (!colEl) return { minutes: slotMin, timeStr: `${String(Math.floor(slotMin/60)).padStart(2,'0')}:${String(slotMin%60).padStart(2,'0')}` }
+      // calcular top del área de horas usando el bottom del header correspondiente
+      const headerRect = headerCells[index]?.getBoundingClientRect()
+      const colRect = colEl.getBoundingClientRect()
+      const top = headerRect ? headerRect.bottom : colRect.top
+      const bottom = colRect.bottom
+      const height = Math.max(1, bottom - top)
+      const rel = Math.max(0, Math.min(1, (y - top) / height))
+      const minutes = Math.round((slotMin + rel * totalMinutes) / 5) * 5 // redondeo a 5 minutos
+      const hh = Math.floor(minutes / 60).toString().padStart(2, '0')
+      const mm = (minutes % 60).toString().padStart(2, '0')
+      return { minutes, timeStr: `${hh}:${mm}` }
+    }
+
+    function onMouseDown(e: MouseEvent) {
+      if (e.button !== 0) return
+      // solo en vistas timeGrid
+      const api = calendarRef.current?.getApi?.()
+      const viewType = api?.view?.type
+      if (viewType !== 'timeGridWeek' && viewType !== 'timeGridDay') return
+      // no iniciar selección si no hay profesional seleccionado
+      if (selectedProfesionalId === null) return
+      // no iniciar selección si el clic proviene de un evento ya existente o del header
+      const targetEl = e.target as HTMLElement
+      if (targetEl.closest('.fc-event') || targetEl.closest('.fc-col-header-cell') || targetEl.closest('.fc-daygrid-day')) return
+      // no iniciar selección si está abierto el modal de cita
+      if (showCitaModal) return
+  const colInfo = getColIndexAndDateFromEvent(e)
+  if (colInfo.index < 0) return
+  const cols = colInfo.cols
+  const headerCells = colInfo.headerCells
+  const { minutes, timeStr } = yToTimeByIndex(cols, headerCells, colInfo.index, e.clientY)
+      selectingRef.current = { startDate: new Date(), startY: e.clientY, colIndex: colInfo.index, dateStr: colInfo.dateStr }
+      setLiveSelection({ open: true, x: e.clientX + 8, y: e.clientY - 24, fecha: colInfo.dateStr, horaInicio: timeStr, horaFin: timeStr, minutes: 0 })
+    }
+    function onMouseMove(e: MouseEvent) {
+      if (!selectingRef.current) {
+        // No hay selección en curso, mostrar tooltip simple al pasar sobre slots
+        const colInfo = getColIndexAndDateFromEvent(e)
+        if (colInfo.index < 0) {
+          setSlotTooltip(null)
+          if (slotTooltipTimeoutRef.current) clearTimeout(slotTooltipTimeoutRef.current)
+          return
+        }
+        
+        const cols = colInfo.cols
+        const headerCells = colInfo.headerCells
+        const { timeStr } = yToTimeByIndex(cols, headerCells, colInfo.index, e.clientY)
+        
+        // Limpiar timeout anterior
+        if (slotTooltipTimeoutRef.current) clearTimeout(slotTooltipTimeoutRef.current)
+        
+        // Mostrar tooltip después de 200ms de estar parado
+        slotTooltipTimeoutRef.current = setTimeout(() => {
+          setSlotTooltip({ x: e.clientX + 10, y: e.clientY - 30, time: timeStr })
+        }, 200)
+        return
+      }
+
+      // Ya hay selección en curso, mostrar el rango de selección
+  const cols = container ? Array.from(container.querySelectorAll('.fc-timegrid-col')) as HTMLElement[] : []
+  const headerCells = Array.from(document.querySelectorAll('.fc-col-header-cell')) as HTMLElement[]
+  const colIndex = selectingRef.current.colIndex ?? 0
+  if (!cols[colIndex]) return
+  const start = selectingRef.current.startY ?? e.clientY
+  const startInfo = yToTimeByIndex(cols, headerCells, colIndex, start)
+  const endInfo = yToTimeByIndex(cols, headerCells, colIndex, e.clientY)
+      const startMinutes = startInfo.minutes
+      const endMinutes = endInfo.minutes
+      const s = Math.min(startMinutes, endMinutes)
+      const eM = Math.max(startMinutes, endMinutes)
+      const minutes = Math.max(5, eM - s)
+      const hhS = Math.floor(s / 60).toString().padStart(2, '0')
+      const mmS = (s % 60).toString().padStart(2, '0')
+      const hhE = Math.floor(eM / 60).toString().padStart(2, '0')
+      const mmE = (eM % 60).toString().padStart(2, '0')
+      setLiveSelection({ open: true, x: e.clientX + 8, y: e.clientY - 24, fecha: selectingRef.current.dateStr, horaInicio: `${hhS}:${mmS}`, horaFin: `${hhE}:${mmE}`, minutes })
+    }
+
+    function onMouseUp(e: MouseEvent) {
+      if (!selectingRef.current) return
+  const cols = container ? Array.from(container.querySelectorAll('.fc-timegrid-col')) as HTMLElement[] : []
+  const headerCells = Array.from(document.querySelectorAll('.fc-col-header-cell')) as HTMLElement[]
+  const colIndex = selectingRef.current.colIndex ?? 0
+  if (!cols[colIndex]) { selectingRef.current = null; setLiveSelection(null); return }
+  const startY = selectingRef.current.startY ?? e.clientY
+  const startInfo = yToTimeByIndex(cols, headerCells, colIndex, startY)
+  const endInfo = yToTimeByIndex(cols, headerCells, colIndex, e.clientY)
+      const s = Math.min(startInfo.minutes, endInfo.minutes)
+      const eM = Math.max(startInfo.minutes, endInfo.minutes)
+      // construir slotInfo
+      const dateStr = selectingRef.current.dateStr || new Date().toISOString().slice(0,10)
+      const hhS = Math.floor(s / 60).toString().padStart(2, '0')
+      const mmS = (s % 60).toString().padStart(2, '0')
+      const hhE = Math.floor(eM / 60).toString().padStart(2, '0')
+      const mmE = (eM % 60).toString().padStart(2, '0')
+      // limpiar
+      selectingRef.current = null
+      setLiveSelection(null)
+      // validar dia domingo
+      const fechaDate = new Date(dateStr + 'T00:00:00')
+      if (fechaDate.getDay() === 0) return
+      if (selectedProfesionalId === null) return
+      // Comprobar colisiones con modulos/citas
+      const startISO = `${dateStr}T${hhS}:${mmS}`
+      const endISO = `${dateStr}T${hhE}:${mmE}`
+      const startDate = new Date(startISO)
+      const endDate = new Date(endISO)
+      const slotHasModulo = modulosFiltrados.some((m) => {
+        const mStart = new Date(`${m.fecha}T${m.horaInicio}`)
+        const mEnd = new Date(`${m.fecha}T${m.horaFin}`)
+        return startDate < mEnd && endDate > mStart
+      })
+      const slotHasCita = citasFiltradas.some((c) => {
+        const modulo = modulosFiltrados.find((m) => m.id === c.moduloId)
+        if (!modulo) return false
+        const cStart = new Date(`${c.fecha}T${modulo.horaInicio}`)
+        const cEnd = new Date(`${c.fecha}T${modulo.horaFin}`)
+        return startDate < cEnd && endDate > cStart
+      })
+      if (!slotHasModulo && !slotHasCita) {
+        setSlotInfo({ start: startDate, end: endDate, fecha: dateStr, horaInicio: `${hhS}:${mmS}`, horaFin: `${hhE}:${mmE}` })
+        setShowModuloModal(true)
+      }
+    }
+
+    window.addEventListener('mouseup', onMouseUp)
+    container.addEventListener('mousedown', onMouseDown)
+    window.addEventListener('mousemove', onMouseMove)
+
+    return () => {
+      window.removeEventListener('mouseup', onMouseUp)
+      container.removeEventListener('mousedown', onMouseDown)
+      window.removeEventListener('mousemove', onMouseMove)
+      container.removeEventListener('mouseleave', () => {
+        setSlotTooltip(null)
+        if (slotTooltipTimeoutRef.current) clearTimeout(slotTooltipTimeoutRef.current)
+      })
+    }
+  }, [selectedProfesionalId, modulosFiltrados, citasFiltradas])
+
+  // Limpiar tooltip cuando el componente se desmonta
+  useEffect(() => {
+    return () => {
+      if (slotTooltipTimeoutRef.current) clearTimeout(slotTooltipTimeoutRef.current)
+      setSlotTooltip(null)
+    }
+  }, [])
+
+  const handleSelectModulo = () => {
+    if (contextMenu?.type === "modulo") {
+      const moduloId = Number.parseInt(contextMenu.event.id.replace("modulo-", ""))
+      setSelectedModulos((prev) => prev.includes(moduloId) ? prev.filter((id) => id !== moduloId) : [...prev, moduloId])
+    }
+    setContextMenu(null)
+  }
+  const handleEditModulo = () => { if (contextMenu?.type === "modulo") { const modulo = contextMenu.event.extendedProps.data as Modulo; setOpenModuloForEdit(true); setSelectedModulo(modulo); } setContextMenu(null) }
+  const handleDeleteModulo = () => { if (contextMenu?.type === "modulo") { const moduloId = Number.parseInt(contextMenu.event.id.replace("modulo-", "")); setModuloAEliminar(moduloId) } setContextMenu(null) }
+  const handleAgendarPaciente = () => { if (contextMenu?.type === "modulo") { const modulo = contextMenu.event.extendedProps.data as Modulo; setOpenModuloForEdit(false); setSelectedModulo(modulo); setShowCitaModal(true) } setContextMenu(null) }
+  const handleDeleteSelectedModulos = () => { if (selectedModulos.length > 0) { setConfirmEliminarSeleccionados(true) } }
+
+  useEffect(() => {
+    function handleEditModuloFromListEvt(e: any) { setOpenModuloForEdit(true); setSelectedModulo(e.detail); }
+    window.addEventListener("editModuloFromList", handleEditModuloFromListEvt)
+    return () => window.removeEventListener("editModuloFromList", handleEditModuloFromListEvt)
+  }, [])
+
+  // Abrir el modal de edición solo cuando selectedModulo esté disponible y se haya solicitado editar
+  useEffect(() => {
+    if (selectedModulo && openModuloForEdit) {
+      setShowModuloModal(true)
+      // reset flag
+      setOpenModuloForEdit(false)
+    }
+  }, [selectedModulo, openModuloForEdit])
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button
+  onClick={() => {
+    setSelectedModulo(null);
+    setShowModuloModal(true);
+  }}
+  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+  disabled={selectedProfesionalId === null}
+>
+  <Plus className="w-4 h-4" />
+  Crear Módulo
+</button>
+          <button onClick={() => setShowPlantillaListModal(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-800 rounded-lg border border-gray-300 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled={selectedProfesionalId === null}>
+            <span className="w-4 h-4">📋</span>
+            Gestionar Módulos
+          </button>
+          <button onClick={() => {
+            if (!selectedProfesionalId) return
+            const today = new Date()
+            const monday = getMonday(today)
+            setWeekPickerMonth(new Date(monday))
+            setCopiarSemanaTargets([])
+            setCopiarSemanaModal({ open: true, originMonday: monday, profesionalId: selectedProfesionalId ? parseInt(selectedProfesionalId) : 0 })
+          }} className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-800 rounded-lg border border-gray-300 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled={selectedProfesionalId === null}>
+            <span className="w-4 h-4">🗓️</span>
+            Copiar semana
+          </button>
+          <button onClick={() => {
+            if (!selectedProfesionalId) return
+            const today = new Date()
+            const monday = getMonday(today)
+            setWeekPickerMonth(new Date(monday))
+            setEliminarSemanaTargets([])
+            setEliminarSemanaModal({ open: true, profesionalId: selectedProfesionalId ? parseInt(selectedProfesionalId) : 0 })
+          }} className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-800 rounded-lg border border-red-300 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled={selectedProfesionalId === null}>
+            <Trash2 className="w-4 h-4" />
+            Eliminar semana
+          </button>
+          {selectedModulos.length > 0 && (
+            <button onClick={handleDeleteSelectedModulos} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Eliminar seleccionados</button>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 w-full flex flex-col items-start">
+        <label htmlFor="profesional-select" className="mb-1 text-sm font-semibold text-gray-700">Profesionales registrados</label>
+        <select id="profesional-select" className="w-full px-4 py-3 rounded-xl border-2 border-blue-400 bg-gradient-to-r from-blue-100 via-white to-blue-100 text-blue-900 font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-600 hover:shadow-xl" value={selectedProfesionalId ?? ""} onChange={(e) => { const val = e.target.value; setSelectedProfesionalId(val || null); setSelectedModulos([]); setSelectedModulo(null); setContextMenu(null) }}>
+          <option value="">Selecciona un profesional...</option>
+          {profesionalesActuales.map((u: any) => (
+            <option key={u.id} value={String(u.id)} className="py-2">{u.nombre} {u.apellidoPaterno ? u.apellidoPaterno : ""} {u.apellidoMaterno ? u.apellidoMaterno : ""} - {u.profesion}{u.cargo ? ` / ${u.cargo}` : ""}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="bg-white rounded-lg border border-gray-200 p-6" style={{ overflow: 'visible', position: 'relative' }}>
+        <style>{style}</style>
+        {selectedProfesionalId === null ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center text-gray-600">
+            <div className="text-5xl mb-4">🗓️</div>
+            <h3 className="text-xl font-semibold mb-2">Selecciona un profesional para ver su agenda</h3>
+            <p className="max-w-md">Usa la lista desplegable de arriba para elegir un profesional. Una vez seleccionado, cargaremos sus módulos y citas en el calendario.</p>
+          </div>
+        ) : (
+          <div style={{ overflow: 'visible', position: 'relative' }}>
+          <FullCalendar
+            eventContent={eventContent}
+            ref={calendarRef}
+            plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
+            initialView="timeGridWeek"
+            firstDay={1}
+            headerToolbar={{ left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay" }}
+            views={{
+              dayGridMonth: { buttonText: 'Mes' },
+              timeGridWeek: {
+                buttonText: 'Semana',
+                firstDay: 1, // Lunes
+                slotMinTime: "08:00:00",
+                slotMaxTime: "20:00:00",
+                allDaySlot: false,
+                // Forzar rango visible: Lunes (inicio) a Domingo (fin)
+                visibleRange: (currentDate: Date) => {
+                  const start = new Date(currentDate);
+                  const day = start.getDay(); // 0=Domingo, 1=Lunes, ...
+                  const diffToMonday = (day + 6) % 7; // días desde lunes
+                  start.setDate(start.getDate() - diffToMonday);
+                  // Fin: siguiente lunes
+                  const end = new Date(start);
+                  end.setDate(start.getDate() + 7);
+                  return { start, end };
+                },
+                dayHeaderContent: (info: any) => {
+                  const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+                  const nombre = dias[info.date.getDay()];
+                  const numero = info.date.getDate();
+                  return `${nombre} ${numero}`;
+                },
+                dayCellClassNames: (arg: any) => {
+                  if (arg.date.getDay() === 0) return ["fc-domingo-disabled"];
+                  return [];
+                },
+              },
+              timeGridDay: {
+                buttonText: 'Día',
+                dayHeaderContent: (info: any) => {
+                  const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+                  const nombre = dias[info.date.getDay()];
+                  const numero = info.date.getDate();
+                  return `${nombre} ${numero}`;
+                }
+              }
+            }}
+            slotDuration="00:15:00"
+            slotMinTime="08:00:00"
+            slotMaxTime="20:00:00"
+            allDaySlot={false}
+            editable={true}
+            droppable={true}
+            eventResizableFromStart={true}
+            selectable={true}
+            selectOverlap={false}
+            events={events}
+            eventDrop={handleEventDrop}
+            eventResize={handleEventResize}
+            select={(info: any) => {
+              // Deshabilitar selección en domingo
+              if (info.start.getDay() === 0 || info.end.getDay() === 0) return;
+              const calendarApi = calendarRef.current?.getApi?.()
+              if (!calendarApi) return
+              if (calendarApi.view.type !== 'timeGridWeek' && calendarApi.view.type !== 'timeGridDay') return
+              if (selectedProfesionalId === null) return
+              const slotHasModulo = modulosFiltrados.some((m) => {
+                const mStart = new Date(`${m.fecha}T${m.horaInicio}`)
+                const mEnd = new Date(`${m.fecha}T${m.horaFin}`)
+                return info.start < mEnd && info.end > mStart
+              })
+              const slotHasCita = citasFiltradas.some((c) => {
+                const modulo = modulosFiltrados.find((m) => m.id === c.moduloId)
+                if (!modulo) return false
+                const cStart = new Date(`${c.fecha}T${modulo.horaInicio}`)
+                const cEnd = new Date(`${c.fecha}T${modulo.horaFin}`)
+                return info.start < cEnd && info.end > cStart
+              })
+              if (!slotHasModulo && !slotHasCita) {
+                setSlotInfo({ start: info.start, end: info.end, fecha: info.startStr.split("T")[0], horaInicio: info.startStr.split("T")[1]?.slice(0, 5) ?? '', horaFin: info.endStr.split("T")[1]?.slice(0, 5) ?? '' })
+                setShowModuloModal(true)
+              }
+            }}
+            eventClick={(info: any) => {
+              // Deshabilitar clic en domingo
+              if (info.event.start.getDay() === 0) return;
+              if (selectedProfesionalId === null) return
+              if (info.jsEvent.button !== 2) {
+                if (info.event.extendedProps.type === "modulo") {
+                  const modulo = info.event.extendedProps.data as Modulo
+                  const citasEnModulo = citas.filter((c) => c.moduloId === modulo.id)
+                  if (citasEnModulo.length === 0) { setOpenModuloForEdit(false); setSelectedModulo(modulo); setShowCitaModal(true) } else { setSelectedModulo(modulo); setShowModuloModal(true) }
+                }
+              }
+            }}
+            dateClick={(info: any) => { const calendarApi = calendarRef.current?.getApi?.(); if (calendarApi && calendarApi.view.type === 'dayGridMonth') { calendarApi.changeView('timeGridDay', info.dateStr) } }}
+            eventDidMount={(arg: any) => { arg.el.addEventListener("contextmenu", (e: MouseEvent) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, event: arg.event, type: arg.event.extendedProps.type }) }) }}
+            eventMouseEnter={handleEventMouseEnter}
+            eventMouseLeave={handleEventMouseLeave}
+            height="auto"
+            locale="es"
+            buttonText={{ today: "Hoy", month: "Mes", week: "Semana", day: "Día" }}
+            slotLabelFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
+            eventTimeFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
+          />
+          </div>
+        )}
+      </div>
+
+      {showModuloModal && !slotInfo && !selectedModulo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Crear Módulo</h3>
+              <button onClick={() => { setShowModuloModal(false); }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const tipo = String(formData.get("tipo") || "");
+                const duracion = Number(formData.get("duracion") || 30);
+                const estamento = String(formData.get("estamento") || "");
+                const color = String(formData.get("color") || "#3498db");
+                const observaciones = String(formData.get("observaciones") || "");
+                if (!tipo || !duracion || !estamento) return;
+                const nuevoModulo = {
+                  tipo,
+                  profesionalId: selectedProfesionalId ?? currentUser.id,
+                  profesionalNombre: selectedProfesional ? `${selectedProfesional.nombre} ${selectedProfesional.apellidoPaterno || ''} ${selectedProfesional.apellidoMaterno || ''}`.trim() : `${currentUser.nombre} ${currentUser.apellidos}`,
+                  fecha: new Date().toISOString().slice(0, 10),
+                  horaInicio: "08:00",
+                  horaFin: "09:00",
+                  duracion,
+                  disponible: true,
+                  color,
+                  estamento,
+                  observaciones,
+                };
+                onModuloCreate(nuevoModulo);
+                setShowModuloModal(false);
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de módulo</label>
+                <input name="tipo" type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Duración (minutos)</label>
+                <input name="duracion" type="number" min="10" step="5" className="w-full px-3 py-2 border border-gray-300 rounded-lg" required defaultValue={30} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estamento</label>
+                <input name="estamento" type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                <input name="color" type="color" className="w-16 h-8 border border-gray-300 rounded-lg" defaultValue="#3498db" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Detalle de la prestación</label>
+                <textarea name="observaciones" className="w-full px-3 py-2 border border-gray-300 rounded-lg" rows={2} />
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar</button>
+                <button type="button" onClick={() => setShowModuloModal(false)} className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancelar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {excludedPreview && excludedPreview.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Resumen de eliminación</h3>
+              <button onClick={() => setExcludedPreview(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="mb-4">
+              {excludedPreview.toDelete.length > 0 ? (
+                excludedPreview.excluded.length > 0 ? (
+                  <div className="mb-3 text-sm text-gray-700">Se eliminarán <strong>{excludedPreview.toDelete.length}</strong> módulo(s), excepto los siguientes debido a que tienen cita agendada:</div>
+                ) : (
+                  <div className="mb-3 text-sm text-gray-700">Se eliminarán <strong>{excludedPreview.toDelete.length}</strong> módulo(s).</div>
+                )
+              ) : (
+                <div className="mb-3 text-sm text-gray-700">No hay módulos borrables. Los siguientes módulos fueron excluidos por tener citas asociadas:</div>
+              )}
+              {excludedPreview.excluded.length > 0 && (
+                <div className="max-h-48 overflow-auto border rounded p-2">
+                  {excludedPreview.excluded.map((e) => (
+                    <div key={e.id} className="text-sm border-b last:border-b-0 py-1">
+                      <div className="font-semibold">{e.tipo ?? 'Módulo'}</div>
+                      <div className="text-xs text-gray-500">{e.fecha} • {e.horaInicio}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setExcludedPreview(null)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cerrar</button>
+              {excludedPreview.toDelete.length > 0 && (
+                <button onClick={() => { setConfirmEliminarSemana({ open: true, ids: excludedPreview.toDelete }); setExcludedPreview(null); }} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Confirmar eliminación</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showModuloModal && (slotInfo || selectedModulo) && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">{slotInfo ? "Asignar módulo de prestación" : selectedModulo ? "Editar Módulo" : "Crear Módulo"}</h3>
+              <button onClick={() => { setShowModuloModal(false); setSelectedModulo(null); setSlotInfo(null); setModuloExistenteId(null) }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            {slotInfo ? (
+              <form onSubmit={(e) => { e.preventDefault(); const formData = new FormData(e.currentTarget); const selectedId = Number(formData.get("moduloExistente")); const base = DEMO_DATA.plantillas.find((p: PlantillaModulo) => p.id === selectedId); if (!slotInfo || !base) return; const duracion = base.duracion; const estamento = selectedProfesional ? selectedProfesional.profesion : (base.estamento || ""); const color = base.color; const observaciones = base.observaciones || ""; const moduloBase: Omit<Modulo, "id"> = { plantillaId: base.id, tipo: base.tipo, profesionalId: selectedProfesional?.id ?? currentUser.id, profesionalNombre: selectedProfesional ? `${selectedProfesional.nombre} ${selectedProfesional.apellidoPaterno || ''} ${selectedProfesional.apellidoMaterno || ''}`.trim() : `${currentUser.nombre} ${currentUser.apellidos}`, fecha: slotInfo.fecha, horaInicio: slotInfo.horaInicio, horaFin: slotInfo.horaFin, duracion, disponible: true, color, estamento, observaciones }; const end = slotInfo.end.getTime(); const modulosACrear: Omit<Modulo, "id">[] = []; let current = new Date(slotInfo.start); while (true) { const next = new Date(current.getTime() + duracion * 60000); if (next.getTime() > end) break; const horaInicio = current.toTimeString().slice(0, 5); const horaFin = next.toTimeString().slice(0, 5); modulosACrear.push({ ...moduloBase, fecha: slotInfo.fecha, horaInicio, horaFin }); current = next } modulosACrear.forEach((m) => onModuloCreate(m)); setShowModuloModal(false); setSlotInfo(null); setModuloExistenteId(null) }} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Selecciona una plantilla de módulo</label>
+                  <select name="moduloExistente" className="w-full px-3 py-2 border border-gray-300 rounded-lg" required value={moduloExistenteId ?? ''} onChange={e => { const val = e.target.value; setModuloExistenteId(val ? Number(val) : null) }}>
+                    <option value="">-- Selecciona una plantilla --</option>
+                    {DEMO_DATA.plantillas.filter((p: PlantillaModulo) => selectedProfesionalId === null || String(p.profesionalId) === selectedProfesionalId).map((p) => (<option key={p.id} value={p.id}>{p.tipo} ({p.duracion} min)</option>))}
+                  </select>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Duración</label>
+                  <input type="text" name="duracion" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed" value={plantillaSeleccionada ? `${plantillaSeleccionada.duracion} min` : ''} readOnly tabIndex={-1} />
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Estamento</label>
+                  <input type="text" name="estamento" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed" value={selectedProfesional ? selectedProfesional.profesion : ''} readOnly tabIndex={-1} />
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-600">
+                  <p><strong>Fecha slot:</strong> {slotInfo.fecha}</p>
+                  <p><strong>Horario slot:</strong> {slotInfo.horaInicio} - {slotInfo.horaFin}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Asignar módulo</button>
+                  <button type="button" onClick={() => { setShowModuloModal(false); setSlotInfo(null); setModuloExistenteId(null) }} className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancelar</button>
+                </div>
+              </form>
+            ) : selectedModulo ? (
+              <form onSubmit={(e) => { e.preventDefault(); if (!selectedModulo) return; const formData = new FormData(e.currentTarget); const tipo = String(formData.get("tipo") || selectedModulo.tipo); const duracion = Number(formData.get("duracion") || selectedModulo.duracion); const estamento = String(formData.get("estamento") || selectedModulo.estamento || ""); const color = String(formData.get("color") || selectedModulo.color); const observaciones = String(formData.get("observaciones") || selectedModulo.observaciones || ""); onModuloUpdate(selectedModulo.id, { tipo, duracion, estamento, color, observaciones }); setShowModuloModal(false); setSelectedModulo(null) }} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de módulo</label>
+                  <input name="tipo" className="w-full px-3 py-2 border border-gray-300 rounded-lg" defaultValue={selectedModulo.tipo} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Duración (minutos)</label>
+                  <input name="duracion" type="number" min={5} step={5} className="w-full px-3 py-2 border border-gray-300 rounded-lg" defaultValue={selectedModulo.duracion} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Estamento</label>
+                  <input name="estamento" className="w-full px-3 py-2 border border-gray-300 rounded-lg" defaultValue={selectedModulo.estamento || ""} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                  <input name="color" type="color" className="w-12 h-10 px-1 py-1 border border-gray-300 rounded-lg" defaultValue={selectedModulo.color || "#3b82f6"} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Detalle de la prestación</label>
+                  <textarea name="observaciones" className="w-full px-3 py-2 border border-gray-300 rounded-lg" rows={2} defaultValue={selectedModulo.observaciones || ""} placeholder="Detalle opcional de la prestación..." />
+                </div>
+                <div className="flex gap-2">
+                  <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar</button>
+                  <button type="button" onClick={() => { setShowModuloModal(false); setSelectedModulo(null) }} className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancelar</button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">Selecciona un módulo en el calendario para editarlo, o selecciona un rango de tiempo en la agenda para asignar un módulo existente.</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setShowModuloModal(false)} className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cerrar</button>
+                  <button type="button" onClick={() => { setShowModuloModal(false); setShowGestionModulosModal(true) }} className="flex-1 px-4 py-2 bg-gray-100 text-gray-800 rounded-lg border border-gray-300 hover:bg-gray-200">Gestionar módulos</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showCitaModal && selectedModulo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Agendar Paciente</h3>
+              <button onClick={() => { setShowCitaModal(false); setSelectedModulo(null); setSobrecupoMode(false) }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+      <form onSubmit={(e) => { e.preventDefault(); const formData = new FormData(e.currentTarget); const pacienteId = Number(formData.get("pacienteId")); const paciente = pacientes.find((p) => p.id === pacienteId); if (!paciente || !selectedModulo) return; const pacienteRun = paciente.run; const nuevoNombreModulo = `${selectedModulo.tipo} - ${paciente.nombre} - ${pacienteRun}`; onModuloUpdate(selectedModulo.id, { tipo: nuevoNombreModulo }); const observacion = String(formData.get("observacion") || "") ; if (editingCita) { onCitaUpdate(editingCita.id, { pacienteId: paciente.id, pacienteNombre: paciente.nombre, hora: selectedModulo.horaInicio, esSobrecupo: sobrecupoMode, observacion }); } else { // crear cita como PENDIENTE y recolorear modulo a amarillo
+        const originalColor = selectedModulo.color
+        onModuloUpdate(selectedModulo.id, { color: '#f59e0b' })
+        onCitaCreate({ moduloId: selectedModulo.id, tipo: nuevoNombreModulo, fecha: selectedModulo.fecha, hora: selectedModulo.horaInicio, pacienteId: paciente.id, pacienteNombre: paciente.nombre, profesionalId: selectedModulo.profesionalId, profesionalNombre: selectedModulo.profesionalNombre, estado: "pendiente", esSobrecupo: sobrecupoMode, observacion, originalModuloColor: originalColor }); } setShowCitaModal(false); setSelectedModulo(null); setSobrecupoMode(false); setEditingCita(null) }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Paciente</label>
+                <select name="pacienteId" required className="w-full px-3 py-2 border border-gray-300 rounded-lg" defaultValue={editingCita ? String(editingCita.pacienteId) : ""}>
+                  <option value="">Seleccionar paciente</option>
+                  {pacientes.map((pac) => (<option key={pac.id} value={pac.id}>{pac.nombre} - {pac.run}</option>))}
+                </select>
+              </div>
+              {sobrecupoMode && (<div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">Agendando como sobrecupo</div>)}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observación</label>
+                <textarea name="observacion" className="w-full px-3 py-2 border border-gray-300 rounded-lg" rows={2} placeholder="Observación opcional..." defaultValue={editingCita?.observacion ?? ''} />
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar</button>
+                <button type="button" onClick={() => { setShowCitaModal(false); setSelectedModulo(null); setSobrecupoMode(false) }} className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancelar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {contextMenu && (
+  <div className="fixed bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50" style={{ left: contextMenu.x, top: contextMenu.y }}>
+    {contextMenu.type === "modulo" && (
+      <>
+        <button onClick={handleSelectModulo} className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2">
+          <input type="checkbox" checked={selectedModulos.includes(Number.parseInt(contextMenu.event.id.replace("modulo-", "")))} readOnly className="w-4 h-4" />
+          {selectedModulos.includes(Number.parseInt(contextMenu.event.id.replace("modulo-", ""))) ? "Deseleccionar" : "Seleccionar"} módulo
+        </button>
+        <button onClick={handleEditModulo} className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2"><Edit className="w-4 h-4" />Editar módulo</button>
+        <button onClick={handleDeleteModulo} className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-red-600"><Trash2 className="w-4 h-4" />Eliminar módulo</button>
+        <button onClick={handleAgendarPaciente} className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2"><UserPlus className="w-4 h-4" />Agendar paciente</button>
+        <button onClick={() => {
+          const modulo = contextMenu.event.extendedProps.data as Modulo;
+          const fecha = new Date(modulo.fecha);
+          const day = fecha.getDay();
+          const diffToMonday = (day === 0 ? -6 : 1) - day;
+          const monday = new Date(fecha); monday.setDate(fecha.getDate() + diffToMonday);
+          const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+          const modulosSemana = modulos.filter(m => {
+            const f = new Date(m.fecha);
+            return f >= monday && f <= sunday && m.profesionalId === modulo.profesionalId;
+          });
+          if (modulosSemana.length > 0) {
+            setConfirmEliminarSemana({ open: true, ids: modulosSemana.map(m => m.id) });
+          }
+          setContextMenu(null);
+        }} className="w-full px-4 py-2 text-left hover:bg-red-100 flex items-center gap-2 text-red-700"><Trash2 className="w-4 h-4" />Eliminar todos los módulos de la semana</button>
+        {/* 'Copiar estructura de esta semana' movido a botón en la cabecera */}
+      </>
+    )}
+    {contextMenu.type === "cita" && (() => {
+      const cita = contextMenu.event.extendedProps.data as Cita
+      return (
+        <>
+          <button onClick={() => { setEditingCita(cita); setSelectedModulo(modulos.find(m => m.id === cita.moduloId) ?? null); setShowCitaModal(true); setContextMenu(null) }} className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2"><Edit className="w-4 h-4" />Editar cita</button>
+          {cita.estado !== 'confirmada' && (
+            <button onClick={() => { const modulo = modulos.find(m => m.id === cita.moduloId); const restoreColor = cita.originalModuloColor ?? (modulo ? modulo.color : '#3b82f6'); if (modulo) onModuloUpdate(modulo.id, { color: restoreColor }); onCitaUpdate(cita.id, { estado: 'confirmada' }); setContextMenu(null); }} className="w-full px-4 py-2 text-left hover:bg-green-50 flex items-center gap-2 text-green-600"><Check className="w-4 h-4" />Confirmar cita</button>
+          )}
+          <button onClick={() => { setCitaAEliminar({ id: cita.id }); setContextMenu(null) }} className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-red-600"><Trash2 className="w-4 h-4" />Eliminar cita</button>
+        </>
+      )
+    })()}
+  </div>
+)}
+
+      <ConfirmModal
+        open={!!citaAEliminar}
+        title="Eliminar cita"
+        message="¿Seguro que deseas eliminar esta cita?"
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        onCancel={() => setCitaAEliminar(null)}
+        onConfirm={() => {
+          if (citaAEliminar) {
+            // Buscar la cita a eliminar
+            const cita = citas.find((c) => c.id === citaAEliminar.id);
+            if (cita) {
+              // Restaurar el tipo original del módulo si corresponde
+              const modulo = modulos.find((m) => m.id === cita.moduloId);
+              if (modulo) {
+                // Si el tipo tiene formato "Tipo - Paciente - RUN", dejar solo "Tipo"
+                const tipoBase = modulo.tipo.split(" - ")[0].trim();
+                if (modulo.tipo !== tipoBase) {
+                  onModuloUpdate(modulo.id, { tipo: tipoBase });
+                }
+              }
+            }
+            onCitaDelete(citaAEliminar.id);
+          }
+          setCitaAEliminar(null);
+        }}
+      />
+      <ConfirmModal open={moduloAEliminar != null} title="Eliminar módulo" message="¿Seguro que deseas eliminar este módulo?" confirmText="Eliminar" cancelText="Cancelar" onCancel={() => setModuloAEliminar(null)} onConfirm={() => { if (moduloAEliminar != null) onModuloDelete([moduloAEliminar]); setModuloAEliminar(null) }} />
+      <ConfirmModal open={confirmEliminarSeleccionados} title="Eliminar módulos" message={`¿Estás seguro de eliminar ${selectedModulos.length} módulos?`} confirmText="Eliminar" cancelText="Cancelar" onCancel={() => setConfirmEliminarSeleccionados(false)} onConfirm={() => { onModuloDelete(selectedModulos); setSelectedModulos([]); setConfirmEliminarSeleccionados(false) }} />
+      <ConfirmModal open={!!confirmEliminarSemana?.open} title="Eliminar módulos de la semana" message={`¿Eliminar ${confirmEliminarSemana?.ids.length ?? 0} módulos de la semana?`} confirmText="Eliminar" cancelText="Cancelar" onCancel={() => setConfirmEliminarSemana(null)} onConfirm={() => { if (confirmEliminarSemana) onModuloDelete(confirmEliminarSemana.ids); setConfirmEliminarSemana(null) }} />
+
+      {copiarSemanaModal && copiarSemanaModal.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Copiar estructura de la semana</h3>
+              <button onClick={() => setCopiarSemanaModal(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div>
+              <p className="mb-2">Selecciona la semana destino en el mini calendario:</p>
+              <div className="flex items-center justify-between mb-2">
+                <button className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200" onClick={() => setWeekPickerMonth(addDays(startOfMonth(weekPickerMonth), -1))}>{"<"}</button>
+                <div className="font-semibold">{weekPickerMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</div>
+                <button className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200" onClick={() => setWeekPickerMonth(addDays(endOfMonth(weekPickerMonth), 1))}>{">"}</button>
+              </div>
+              <div className="grid grid-cols-7 gap-1 text-xs text-gray-600">
+                {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map((d) => (<div key={d} className="text-center font-semibold py-1">{d}</div>))}
+                {(() => {
+                  const cells: JSX.Element[] = [];
+                  const monthStart = startOfMonth(weekPickerMonth);
+                  const monthEnd = endOfMonth(weekPickerMonth);
+                  const firstGridDay = getMonday(monthStart);
+                  const lastGridDay = getMonday(addDays(monthEnd, 6));
+                  const currentMondayIso = toISODate(getMonday(new Date()))
+                  let cursor = new Date(firstGridDay);
+                  while (cursor < lastGridDay) {
+                    for (let i=0;i<7;i++) {
+                      const day = addDays(cursor, i);
+                      const inMonth = day.getMonth() === weekPickerMonth.getMonth();
+                      const isSunday = day.getDay() === 0;
+                      const isMonday = day.getDay() === 1;
+                      const cellKey = `${day.toISOString().slice(0,10)}`;
+                      // determinar si la semana (lunes) está seleccionada
+                      const mondayOfWeek = toISODate(getMonday(day))
+                      const selected = copiarSemanaTargets.includes(mondayOfWeek)
+                      const isCurrentWeek = mondayOfWeek === currentMondayIso
+                      const classes = [
+                        'border','rounded','p-2','h-16','relative','cursor-pointer',
+                        inMonth ? 'bg-white' : 'bg-gray-50',
+                        isSunday ? 'opacity-50 pointer-events-none' : '',
+                        selected ? 'bg-blue-100 ring-2 ring-blue-400' : (isCurrentWeek ? 'bg-emerald-50 ring-2 ring-emerald-300' : (isMonday ? 'ring-1 ring-blue-200' : '')),
+                      ].join(' ');
+                      cells.push(
+                        <div key={cellKey} className={classes} onClick={() => {
+                          if (!copiarSemanaModal) return;
+                          if (isSunday) return;
+                          // alternar selección de la semana (usar lunes como id)
+                          const mondayId = toISODate(getMonday(day))
+                          setCopiarSemanaTargets((prev) => prev.includes(mondayId) ? prev.filter((p) => p !== mondayId) : [...prev, mondayId])
+                        }}>
+                          <div className="absolute top-1 right-1 text-[10px] text-gray-400">{getWeekNumber(day)}</div>
+                          <div className="text-sm font-semibold">{day.getDate()}</div>
+                          {selected && (
+                            <div className="absolute inset-x-0 bottom-1 text-center text-[9px] text-blue-700 font-medium">Seleccionada</div>
+                          )}
+                          {isCurrentWeek && (
+                            <div className="absolute left-1 bottom-6 text-[9px] text-emerald-700 font-medium">Esta semana</div>
+                          )}
+                        </div>
+                      );
+                    }
+                    cursor = addDays(cursor, 7);
+                  }
+                  return cells;
+                })()}
+              </div>
+              <div className="text-xs text-gray-500 mt-2">Haz clic en cualquier día para seleccionar su semana (se copiará al lunes de esa semana). Domingos no permitidos.</div>
+              <div className="flex gap-2 mt-4">
+                <button type="button" onClick={() => setCopiarSemanaModal(null)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancelar</button>
+                <button type="button" disabled={copiarSemanaTargets.length === 0} onClick={() => {
+                  if (!copiarSemanaModal) return;
+                  // aplicar copyWeekStructure a todas las semanas seleccionadas
+                  const origin = copiarSemanaModal.originMonday
+                  const profesionalId = copiarSemanaModal.profesionalId
+                  let total = 0
+                  const results: { target: string; created: number }[] = []
+                  copiarSemanaTargets.forEach((mondayIso) => {
+                    const toMonday = new Date(mondayIso + 'T00:00:00')
+                    // evitar copiar a la misma semana origen
+                    if (toMonday.getTime() === origin.getTime()) return
+                    const count = copyWeekStructure(origin, toMonday, profesionalId)
+                    total += count
+                    results.push({ target: mondayIso, created: count })
+                  })
+                  // mostrar resumen
+                  const lines = results.map(r => `${r.created} módulos → semana ${r.target}`).join('\n')
+                  window.alert(`Copiados en total ${total} módulo(s).\n\n${lines}`)
+                  setCopiarSemanaModal(null)
+                }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50" >COPIAR</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {eliminarSemanaModal && eliminarSemanaModal.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Eliminar módulos por semana</h3>
+              <button onClick={() => setEliminarSemanaModal(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div>
+              <p className="mb-2">Selecciona las semanas destino en el mini calendario (se eliminarán los módulos en esas semanas para el profesional):</p>
+              <div className="flex items-center justify-between mb-2">
+                <button className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200" onClick={() => setWeekPickerMonth(addDays(startOfMonth(weekPickerMonth), -1))}>{"<"}</button>
+                <div className="font-semibold">{weekPickerMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</div>
+                <button className="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200" onClick={() => setWeekPickerMonth(addDays(endOfMonth(weekPickerMonth), 1))}>{">"}</button>
+              </div>
+              <div className="grid grid-cols-7 gap-1 text-xs text-gray-600">
+                {["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map((d) => (<div key={d} className="text-center font-semibold py-1">{d}</div>))}
+                {(() => {
+                  const cells: JSX.Element[] = [];
+                  const monthStart = startOfMonth(weekPickerMonth);
+                  const monthEnd = endOfMonth(weekPickerMonth);
+                  const firstGridDay = getMonday(monthStart);
+                  const lastGridDay = getMonday(addDays(monthEnd, 6));
+                  const currentMondayIso = toISODate(getMonday(new Date()))
+                  let cursor = new Date(firstGridDay);
+                  while (cursor < lastGridDay) {
+                    for (let i=0;i<7;i++) {
+                      const day = addDays(cursor, i);
+                      const inMonth = day.getMonth() === weekPickerMonth.getMonth();
+                      const isSunday = day.getDay() === 0;
+                      const cellKey = `${day.toISOString().slice(0,10)}`;
+                      const mondayOfWeek = toISODate(getMonday(day))
+                      const selected = eliminarSemanaTargets.includes(mondayOfWeek)
+                      const isCurrentWeek = mondayOfWeek === currentMondayIso
+                      const classes = [
+                        'border','rounded','p-2','h-16','relative','cursor-pointer',
+                        inMonth ? 'bg-white' : 'bg-gray-50',
+                        isSunday ? 'opacity-50 pointer-events-none' : '',
+                        selected ? 'bg-red-100 ring-2 ring-red-400' : (isCurrentWeek ? 'bg-emerald-50 ring-2 ring-emerald-300' : '')
+                      ].join(' ');
+                      cells.push(
+                        <div key={cellKey} className={classes} onClick={() => {
+                          if (isSunday) return;
+                          const mondayId = toISODate(getMonday(day))
+                          setEliminarSemanaTargets((prev) => prev.includes(mondayId) ? prev.filter((p) => p !== mondayId) : [...prev, mondayId])
+                        }}>
+                          <div className="absolute top-1 right-1 text-[10px] text-gray-400">{getWeekNumber(day)}</div>
+                          <div className="text-sm font-semibold">{day.getDate()}</div>
+                          {selected && (<div className="absolute inset-x-0 bottom-1 text-center text-[9px] text-red-700 font-medium">Seleccionada</div>)}
+                          {isCurrentWeek && (<div className="absolute left-1 bottom-6 text-[9px] text-emerald-700 font-medium">Esta semana</div>)}
+                        </div>
+                      );
+                    }
+                    cursor = addDays(cursor, 7);
+                  }
+                  return cells;
+                })()}
+              </div>
+              <div className="text-xs text-gray-500 mt-2">Haz clic en cualquier día para seleccionar su semana. Domingos no permitidos.</div>
+              <div className="flex gap-2 mt-4">
+                <button type="button" onClick={() => setEliminarSemanaModal(null)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancelar</button>
+                <button type="button" disabled={eliminarSemanaTargets.length === 0} onClick={() => {
+                  if (!eliminarSemanaModal) return;
+                  // recopilar ids de módulos en las semanas seleccionadas para el profesional
+                  const profesionalId = eliminarSemanaModal.profesionalId
+                  const idsToDelete: number[] = []
+                  const excluded: { id: number; fecha: string; horaInicio: string }[] = []
+                  eliminarSemanaTargets.forEach((mondayIso) => {
+                    const start = new Date(mondayIso + 'T00:00:00')
+                    const end = addDays(start, 6)
+                    const matches = modulos.filter((m) => m.profesionalId === profesionalId && m.fecha >= toISODate(start) && m.fecha <= toISODate(end))
+                    matches.forEach(m => {
+                      const hasCita = citas.some((c) => c.moduloId === m.id)
+                      if (hasCita) excluded.push({ id: m.id, fecha: m.fecha, horaInicio: m.horaInicio })
+                      else idsToDelete.push(m.id)
+                    })
+                  })
+                  // eliminar duplicados
+                  const uniqueIds = Array.from(new Set(idsToDelete))
+                  if (uniqueIds.length === 0) {
+                    // No hay módulos borrables: mostrar preview de excluidos (solo información)
+                    setExcludedPreview({ open: true, excluded: excluded.map(e => ({ id: e.id, tipo: (modulos.find(m=>m.id===e.id)?.tipo) ?? '', fecha: e.fecha, horaInicio: e.horaInicio })), toDelete: [] })
+                    setEliminarSemanaModal(null)
+                    return
+                  }
+                  // Mostrar preview donde se listan los excluidos y los que se borrarán
+                  setExcludedPreview({ open: true, excluded: excluded.map(e => ({ id: e.id, tipo: (modulos.find(m=>m.id===e.id)?.tipo) ?? '', fecha: e.fecha, horaInicio: e.horaInicio })), toDelete: uniqueIds })
+                  setEliminarSemanaModal(null)
+                }} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">ELIMINAR</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {liveSelection && liveSelection.open && (
+        <div style={{ position: 'fixed', left: liveSelection.x, top: liveSelection.y, zIndex: 60 }}>
+          <div className="bg-white shadow rounded p-2 text-xs border border-gray-200">
+            <div className="font-semibold">{liveSelection.fecha}</div>
+            <div className="flex items-center gap-2">
+              <div className="px-2 py-1 bg-gray-100 rounded">{liveSelection.horaInicio}</div>
+              <div className="text-gray-400">→</div>
+              <div className="px-2 py-1 bg-gray-100 rounded">{liveSelection.horaFin}</div>
+            </div>
+            <div className="text-gray-500 text-right">{liveSelection.minutes} min</div>
+          </div>
+        </div>
+      )}
+      {tooltip?.cita && (() => {
+        const cita = tooltip.cita as Cita
+        const pacienteObj = pacientes.find((p) => p.id === cita.pacienteId)
+        const fullName = pacienteObj ? `${pacienteObj.nombre}` : (cita.pacienteNombre ?? '')
+        const run = pacienteObj?.run ?? ''
+        return (
+          <div style={{ position: 'fixed', left: tooltip.x + 12, top: tooltip.y + 12, zIndex: 70, pointerEvents: 'none' }}>
+            <div className="bg-white/90 backdrop-blur-sm rounded p-3 text-base border border-gray-200 shadow-lg max-w-xs">
+                    <div className="font-semibold text-base mb-1">{fullName}</div>
+                    {/* Estado de la cita */}
+                    {cita.estado === 'confirmada' ? (
+                      <div className="inline-block text-xs px-2 py-0.5 bg-emerald-600 text-white rounded mb-2">Cita Confirmada</div>
+                    ) : (
+                      <div className="inline-block text-xs px-2 py-0.5 bg-yellow-600 text-white rounded mb-2">Pendiente Confirmacion</div>
+                    )}
+              {run && <div className="text-sm text-gray-500 mb-1">RUN: {run}</div>}
+              <div className="text-sm text-gray-500 mb-1">Fecha: {cita.fecha} • Hora: {cita.hora}</div>
+              {pacienteObj?.telefono && <div className="text-sm text-gray-500 mb-1">Teléfono: {pacienteObj.telefono}</div>}
+              {cita.observacion && (
+                <div className="mt-2 text-sm text-gray-700 bg-gray-50 p-2 rounded"><strong>Observación:</strong> {cita.observacion}</div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
+
+      {tooltip?.modulo && (() => {
+        const modulo = tooltip.modulo as Modulo
+        const horaModulo = `${modulo.horaInicio} - ${modulo.horaFin}`
+        const detalle = modulo.observaciones ?? modulo.tipo ?? ''
+        return (
+          <div style={{ position: 'fixed', left: tooltip.x + 12, top: tooltip.y + 12, zIndex: 70, pointerEvents: 'none' }}>
+            <div className="bg-white/90 backdrop-blur-sm rounded p-3 text-base border border-gray-200 shadow-lg max-w-xs">
+              <div className="font-semibold text-base mb-1">Hora de módulo: <span className="font-normal">{horaModulo}</span></div>
+              <div className="text-sm text-gray-700 mb-2"><span className="font-normal">{detalle && detalle.length > 0 ? detalle : ' '}</span></div>
+              {/* Si existe una cita asociada, mostrar su estado */}
+              {(() => {
+                const citaAssoc = citas.find((c) => c.moduloId === modulo.id)
+                if (!citaAssoc) return null
+                return citaAssoc.estado === 'confirmada' ? (
+                  <div className="inline-block text-xs px-2 py-0.5 bg-emerald-600 text-white rounded">Cita Confirmada</div>
+                ) : (
+                  <div className="inline-block text-xs px-2 py-0.5 bg-yellow-600 text-white rounded">Pendiente Confirmacion</div>
+                )
+              })()}
+            </div>
+          </div>
+        )
+      })()}
+      {/* Modal para gestionar todos los módulos del profesional seleccionado */}
+      {showGestionModulosModal && (
+        <ModuloListModal
+          modulos={selectedProfesionalId ? modulos.filter((m) => String(m.profesionalId) === selectedProfesionalId) : modulos}
+          onClose={() => setShowGestionModulosModal(false)}
+          onEdit={(modulo) => {
+            // reenviar evento para abrir el modal de edición del módulo
+            window.dispatchEvent(new CustomEvent("editModuloFromList", { detail: modulo }))
+            setShowGestionModulosModal(false)
+          }}
+          onDelete={(id) => {
+            onModuloDelete([id])
+          }}
+        />
+      )}
+
+      {/* Tooltip flotante que sigue al cursor para mostrar la hora del slot */}
+      {slotTooltip && (
+        <div
+          className="fixed pointer-events-none z-50 bg-gradient-to-b from-blue-600 to-blue-700 text-white px-3 py-2 rounded-lg shadow-lg text-sm font-semibold whitespace-nowrap border border-blue-500"
+          style={{
+            left: `${slotTooltip.x}px`,
+            top: `${slotTooltip.y}px`,
+            animation: 'fadeIn 0.2s ease-in-out',
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <span>⏰</span>
+            <span>{slotTooltip.time}</span>
+          </div>
+          <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-blue-600 rotate-45"></div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+
+      {/* Modal para gestionar Plantillas de Módulo */}
+      {showPlantillaListModal && (
+        <PlantillaListModal
+          plantillas={DEMO_DATA.plantillas.filter(
+            (p) => selectedProfesionalId === null || String(p.profesionalId) === selectedProfesionalId
+          )}
+          modulos={modulos}
+          onClose={() => setShowPlantillaListModal(false)}
+          onEdit={(plantilla) => {
+            setEditingPlantilla(plantilla)
+            setShowPlantillaEditModal(true)
+          }}
+          onDelete={(plantillaId) => {
+            // Aquí puedes implementar la lógica de eliminar plantilla
+            console.log("Eliminar plantilla:", plantillaId)
+            setShowPlantillaListModal(false)
+          }}
+        />
+      )}
+
+      {/* Modal para editar/crear Plantilla */}
+      {showPlantillaEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                {editingPlantilla ? "Editar Plantilla" : "Nueva Plantilla"}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowPlantillaEditModal(false)
+                  setEditingPlantilla(null)
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                const formData = new FormData(e.currentTarget)
+                const tipo = String(formData.get("tipo") || "")
+                const duracion = Number(formData.get("duracion") || 0)
+                const estamento = String(formData.get("estamento") || "")
+                const color = String(formData.get("color") || "#3498db")
+                const observaciones = String(formData.get("observaciones") || "")
+
+                if (!tipo || !duracion || !estamento) return
+
+                if (editingPlantilla) {
+                  // Actualizar plantilla existente
+                  const instanceCount = modulos.filter(
+                    (m) => m.plantillaId === editingPlantilla.id
+                  ).length
+
+                  if (instanceCount > 0) {
+                    // Preguntar si quiere propagar cambios
+                    setPlantillaConfirmPropagation({
+                      open: true,
+                      plantilla: { ...editingPlantilla, tipo, duracion, estamento, color, observaciones },
+                      instanceCount,
+                    })
+                  } else {
+                    // Sin instancias, actualizar directamente
+                    Object.assign(editingPlantilla, { tipo, duracion, estamento, color, observaciones })
+                  }
+                } else {
+                  // Crear nueva plantilla
+                  const newPlantilla: PlantillaModulo = {
+                    id: Math.max(...DEMO_DATA.plantillas.map((p) => p.id), 0) + 1,
+                    profesionalId: selectedProfesionalId ?? currentUser.id,
+                    tipo,
+                    duracion,
+                    estamento,
+                    color,
+                    observaciones,
+                  }
+                  DEMO_DATA.plantillas.push(newPlantilla)
+                }
+
+                setShowPlantillaEditModal(false)
+                setEditingPlantilla(null)
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Prestación
+                </label>
+                <input
+                  name="tipo"
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  defaultValue={editingPlantilla?.tipo || ""}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Duración (minutos)
+                </label>
+                <input
+                  name="duracion"
+                  type="number"
+                  min="5"
+                  step="5"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  defaultValue={editingPlantilla?.duracion || 30}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Estamento/Especialidad
+                </label>
+                <input
+                  name="estamento"
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  defaultValue={editingPlantilla?.estamento || ""}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                <input
+                  name="color"
+                  type="color"
+                  className="w-16 h-8 border border-gray-300 rounded-lg"
+                  defaultValue={editingPlantilla?.color || "#3498db"}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Observaciones
+                </label>
+                <textarea
+                  name="observaciones"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  rows={2}
+                  defaultValue={editingPlantilla?.observaciones || ""}
+                />
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Guardar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPlantillaEditModal(false)
+                    setEditingPlantilla(null)
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para propagar cambios de plantilla */}
+      {plantillaConfirmPropagation?.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Actualizar Instancias</h3>
+              <button
+                onClick={() => setPlantillaConfirmPropagation(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-gray-700">
+                Esta plantilla tiene <strong>{plantillaConfirmPropagation.instanceCount}</strong> instancia
+                {plantillaConfirmPropagation.instanceCount !== 1 ? "s" : ""} configuradas en el calendario.
+              </p>
+
+              <p className="text-gray-600 text-sm">
+                ¿Deseas aplicar los cambios a todas las instancias existentes?
+              </p>
+
+              <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                <p className="text-sm text-blue-900">
+                  <strong>Nota:</strong> Si seleccionas "No", solo se actualizará la definición de la
+                  plantilla para futuras instancias.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    if (plantillaConfirmPropagation.plantilla && editingPlantilla) {
+                      // Propagar cambios a todas las instancias
+                      const affectedModulos = modulos.filter(
+                        (m) => m.plantillaId === editingPlantilla.id
+                      )
+                      affectedModulos.forEach((m) => {
+                        onModuloUpdate(m.id, {
+                          tipo: plantillaConfirmPropagation.plantilla.tipo,
+                          duracion: plantillaConfirmPropagation.plantilla.duracion,
+                          estamento: plantillaConfirmPropagation.plantilla.estamento,
+                          color: plantillaConfirmPropagation.plantilla.color,
+                          observaciones: plantillaConfirmPropagation.plantilla.observaciones,
+                        })
+                      })
+                    }
+                    setPlantillaConfirmPropagation(null)
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Sí, propagar
+                </button>
+                <button
+                  onClick={() => {
+                    // Solo actualizar la plantilla sin tocar instancias
+                    if (editingPlantilla && plantillaConfirmPropagation.plantilla) {
+                      Object.assign(editingPlantilla, plantillaConfirmPropagation.plantilla)
+                    }
+                    setPlantillaConfirmPropagation(null)
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  No, solo guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

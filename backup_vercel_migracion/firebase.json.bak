@@ -1,0 +1,35 @@
+// Backup previo a migración Vercel
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": [
+    {
+      "target": "agendas-cecosamlautaro",
+      "public": "public",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "/api/**",
+          "function": "nextapp"
+        },
+        {
+          "source": "**",
+          "function": "nextapp"
+        }
+      ]
+    }
+  ],
+  "functions": {
+    "source": ".",
+    "runtime": "nodejs18",
+    "predeploy": [
+      "npm ci"
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+# Google Cloud deployment ignore file
+.git
+.gitignore
+.env.local
+.env.*.local
+.vercel
+node_modules
+npm-debug.log
+.DS_Store
+.idea
+.vscode
+coverage
+README.md
+*.log
+.next/cache
+dist

@@ -1,0 +1,17 @@
+# Backup previo a migración Vercel
+
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env.local
+.env.*.local
+.vercel
+.next/cache
+dist
+.DS_Store
+*.log
+.idea
+.vscode
+coverage
+README.md
