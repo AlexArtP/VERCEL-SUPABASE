@@ -81,12 +81,18 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
   const { 
     modulos, 
     addModulo, 
+    addModulosBatch,
     updateModulo, 
     deleteModulo,
     addCita,
     updateCita,
     deleteCita,
     citas,  // 🔥 Citas ahora viene del DataContext (Firestore)
+    plantillas, // 🔥 Plantillas (módulos definidos) desde moduloDefinitions
+    addPlantilla,
+    updatePlantilla,
+    deletePlantilla,
+    setVisibleRange,
   } = useData()
 
   // Usar usuarios de Firestore si están disponibles, sino array vacío
@@ -600,10 +606,19 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
                         : "confirmada",
                   }))}
                   pacientes={pacientes}
+                  plantillas={plantillas}
                   currentUser={currentUser}
                   onModuloCreate={(modulo) => {
                     // 🔥 NUEVO: Guardar en Firebase (se sincroniza automáticamente)
                     addModulo(modulo).catch(console.error)
+                  }}
+                  onModulosCreateBatch={(lista: Omit<Modulo, 'id'>[]) => {
+                    if (addModulosBatch) {
+                      addModulosBatch(lista).catch(console.error)
+                    } else {
+                      // Fallback
+                      lista.forEach((m: Omit<Modulo,'id'>) => addModulo(m).catch(console.error))
+                    }
                   }}
                   onModuloUpdate={(id, modulo) => {
                     // 🔥 NUEVO: Actualizar en Firebase
@@ -624,6 +639,21 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
                   onCitaDelete={(id) => {
                     // 🔥 NUEVO: Eliminar cita de Firebase
                     deleteCita(id).catch(console.error)
+                  }}
+                  onPlantillaCreate={(plantilla) => {
+                    // 🔥 NUEVO: Guardar plantilla en moduloDefinitions
+                    addPlantilla(plantilla).catch(console.error)
+                  }}
+                  onPlantillaUpdate={(id, plantilla) => {
+                    // 🔥 NUEVO: Actualizar plantilla en moduloDefinitions
+                    updatePlantilla(id, plantilla).catch(console.error)
+                  }}
+                  onPlantillaDelete={(id) => {
+                    // 🔥 NUEVO: Eliminar plantilla de moduloDefinitions
+                    deletePlantilla(id).catch(console.error)
+                  }}
+                  onVisibleRangeChange={(startISO, endISO) => {
+                    try { setVisibleRange(startISO, endISO) } catch {}
                   }}
                 />
               </div>

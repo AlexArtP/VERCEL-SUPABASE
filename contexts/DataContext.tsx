@@ -7,7 +7,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import type { Modulo, Cita, PlantillaModulo } from '@/lib/demoData'
 import { useAuth } from '@/contexts/AuthContext'
-// firestore functions will be lazy-imported when needed
+import { db } from '@/lib/firebaseConfig'
+import { collection, addDoc, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore'
 
 
 // ============================================
@@ -30,6 +31,7 @@ interface DataContextType {
 
   // FUNCIONES para MÓDULOS
   addModulo: (modulo: Omit<Modulo, 'id'>) => Promise<void>
+  addModulosBatch?: (modulos: Omit<Modulo, 'id'>[]) => Promise<void>
   updateModulo: (id: number, updates: Partial<Modulo>) => Promise<void>
   deleteModulo: (id: number) => Promise<void>
 
@@ -42,6 +44,9 @@ interface DataContextType {
   addPlantilla: (plantilla: Omit<PlantillaModulo, 'id'>) => Promise<void>
   updatePlantilla: (id: number, updates: Partial<PlantillaModulo>) => Promise<void>
   deletePlantilla: (id: number) => Promise<void>
+
+  // CONTROL DE RANGO VISIBLE (para optimizar lecturas)
+  setVisibleRange: (startISO: string, endISO: string) => void
 }
 
 // ============================================
@@ -82,6 +87,17 @@ export function DataProvider({
   const [plantillas, setPlantillas] = useState<PlantillaModulo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Rango visible (YYYY-MM-DD). Se inicia con semana actual para no traer todo.
+  const [visibleStart, setVisibleStart] = useState<string>(() => {
+    const d = new Date(); const day = d.getDay(); const diffToMon = (day + 6) % 7; d.setDate(d.getDate() - diffToMon); d.setHours(0,0,0,0)
+    const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0')
+    return `${y}-${m}-${dd}`
+  })
+  const [visibleEnd, setVisibleEnd] = useState<string>(() => {
+    const d = new Date(); const day = d.getDay(); const diffToMon = (day + 6) % 7; d.setDate(d.getDate() - diffToMon + 6); d.setHours(0,0,0,0)
+    const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0')
+    return `${y}-${m}-${dd}`
+  })
 
   // Estado de autenticación (para no montar listeners sin credenciales)
   const { user, loading: authLoading } = useAuth()
@@ -125,17 +141,21 @@ export function DataProvider({
     // Lazy-import listeners and db utilities
     import('@/lib/firebaseConfig')
       .then((mod) => {
-        unsubModulos = mod.setupModulosListener(profesionalId, (nuevosModulos: any[]) => {
+        // Usar user.uid (string) en lugar de profesionalId para que coincida con lo guardado en Firestore
+        unsubModulos = mod.setupModulosListener(user.uid, (nuevosModulos: any[]) => {
           setModulos(nuevosModulos)
           setLoading(false)
-        })
+        }, visibleStart, visibleEnd)
 
-        unsubCitas = mod.setupCitasListener(profesionalId, (nuevasCitas: any[]) => {
+        unsubCitas = mod.setupCitasListener(user.uid, (nuevasCitas: any[]) => {
           setCitas(nuevasCitas)
           setLoading(false)
-        })
+        }, visibleStart, visibleEnd)
 
-        unsubPlantillas = mod.setupPlantillasListener(profesionalId, (nuevasPlantillas: any[]) => {
+        // NUEVO: Obtener estamento del usuario (profesion)
+        // Se pasará al listener de plantillas para filtrar por estamento coincidente
+        const estamentoUsuario = (user as any)?.profesion || 'Otro'
+        unsubPlantillas = mod.setupPlantillasListener(estamentoUsuario, (nuevasPlantillas: any[]) => {
           setPlantillas(nuevasPlantillas)
           setLoading(false)
         })
@@ -152,7 +172,7 @@ export function DataProvider({
       if (unsubCitas) unsubCitas()
       if (unsubPlantillas) unsubPlantillas()
     }
-  }, [authLoading, user, profesionalId])
+  }, [authLoading, user, profesionalId, visibleStart, visibleEnd])
 
   // ============================================
   // FUNCIONES: CREAR, EDITAR, ELIMINAR
@@ -218,6 +238,46 @@ export function DataProvider({
     [user] // 3. AÑADIR 'user' A LAS DEPENDENCIAS
          //    Esto asegura que la función se "re-crea"
          //    cuando 'user' cambia (de null a logueado).
+  )
+
+  /**
+   * Crear múltiples módulos en una sola operación (batch) para reducir el número de escrituras.
+   */
+  const addModulosBatch = useCallback(
+    async (lista: Omit<Modulo, 'id'>[]) => {
+      if (!user) {
+        const errorMsg = 'Usuario no autenticado. No se pueden crear módulos.'
+        console.error('❌ Error:', errorMsg)
+        setError(errorMsg)
+        throw new Error(errorMsg)
+      }
+      if (!Array.isArray(lista) || lista.length === 0) return
+
+      try {
+        const mod = await import('@/lib/firebaseConfig')
+        const batch = writeBatch(mod.db)
+        const colRef = collection(mod.db, 'modulos')
+
+        lista.forEach((m) => {
+          const docRef = doc(colRef) // ID auto-generado
+          batch.set(docRef, {
+            ...m,
+            profesionalId: user.uid, // forzar pertenencia al usuario autenticado
+            createdAt: new Date().toISOString(),
+          })
+        })
+
+        console.log(`➕ Creando ${lista.length} módulo(s) en lote...`)
+        await batch.commit()
+        console.log('✅ Lote de módulos creado exitosamente')
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Error en creación en lote de módulos'
+        console.error('❌ Error:', errorMsg)
+        setError(errorMsg)
+        throw err
+      }
+    },
+    [user]
   )
 
   /**
@@ -326,14 +386,12 @@ export function DataProvider({
   const addPlantilla = useCallback(
     async (plantilla: Omit<PlantillaModulo, 'id'>) => {
       try {
-        console.log('➕ Creando plantilla:', plantilla)
-        const mod = await import('@/lib/firebaseConfig')
-        const { collection, addDoc } = await import('firebase/firestore')
-        await addDoc(collection(mod.db, 'plantillas'), {
+        console.log('➕ Creando plantilla en moduloDefinitions:', plantilla)
+        await addDoc(collection(db, 'moduloDefinitions'), {
           ...plantilla,
           createdAt: new Date().toISOString(),
         })
-        console.log('✅ Plantilla creada')
+        console.log('✅ Plantilla creada en moduloDefinitions')
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Error al crear plantilla'
         console.error('❌ Error:', errorMsg)
@@ -347,15 +405,13 @@ export function DataProvider({
   const updatePlantilla = useCallback(
     async (id: number, updates: Partial<PlantillaModulo>) => {
       try {
-        console.log('✏️ Actualizando plantilla:', id, updates)
-        const mod = await import('@/lib/firebaseConfig')
-        const { doc, updateDoc } = await import('firebase/firestore')
-        const docRef = doc(mod.db, 'plantillas', id.toString())
+        console.log('✏️ Actualizando plantilla en moduloDefinitions:', id, updates)
+        const docRef = doc(db, 'moduloDefinitions', id.toString())
         await updateDoc(docRef, {
           ...updates,
           updatedAt: new Date().toISOString(),
         })
-        console.log('✅ Plantilla actualizada')
+        console.log('✅ Plantilla actualizada en moduloDefinitions')
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Error al actualizar plantilla'
         console.error('❌ Error:', errorMsg)
@@ -368,11 +424,9 @@ export function DataProvider({
 
   const deletePlantilla = useCallback(async (id: number) => {
     try {
-      console.log('🗑️ Eliminando plantilla:', id)
-      const mod = await import('@/lib/firebaseConfig')
-      const { doc, deleteDoc } = await import('firebase/firestore')
-      await deleteDoc(doc(mod.db, 'plantillas', id.toString()))
-      console.log('✅ Plantilla eliminada')
+      console.log('🗑️ Eliminando plantilla de moduloDefinitions:', id)
+      await deleteDoc(doc(db, 'moduloDefinitions', id.toString()))
+      console.log('✅ Plantilla eliminada de moduloDefinitions')
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Error al eliminar plantilla'
       console.error('❌ Error:', errorMsg)
@@ -394,6 +448,7 @@ export function DataProvider({
         loading,
         error,
         addModulo,
+        addModulosBatch,
         updateModulo,
         deleteModulo,
         addCita,
@@ -402,6 +457,7 @@ export function DataProvider({
         addPlantilla,
         updatePlantilla,
         deletePlantilla,
+        setVisibleRange: (startISO: string, endISO: string) => { setVisibleStart(startISO); setVisibleEnd(endISO) },
       }}
     >
       {children}

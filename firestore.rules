@@ -12,22 +12,17 @@ service cloud.firestore {
     }
     
     // Verificar si el usuario es admin LEYENDO desde el documento en Firestore
-    // Versión segura que maneja documentos inexistentes
     function isAdminFromFirestore() {
       return isAuthenticated() && 
-             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('esAdmin', false) == true;
-    }
-    
-    // Verificar si es admin (alternativa sin lectura de documento - para permisos públicos)
-    // Se usa cuando el documento de usuario podría no existir
-    function isAdminSimple() {
-      // Esta función se usaría si tuviéramos claims, pero por ahora se usa la anterior
-      return isAdminFromFirestore();
+             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.esAdmin == true;
     }
     
     // Obtener el rol del usuario desde Firestore (con manejo de errores)
     function getUserRole() {
-      return isAuthenticated() ? get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('rol', null) : null;
+      return isAuthenticated() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) 
+        ? get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol 
+        : null;
     }
 
     // Verificar si usuario es profesional
@@ -38,11 +33,6 @@ service cloud.firestore {
     // Verificar si usuario es administrativo
     function isAdministrativo() {
       return getUserRole() == 'administrativo';
-    }
-
-    // Verificar si usuario es otros
-    function isOtros() {
-      return getUserRole() == 'otros';
     }
     
     // ============================================================================
@@ -56,10 +46,12 @@ service cloud.firestore {
       allow get: if true;
       
       // Leer:
-      // - Cualquier usuario autenticado puede leer su propio documento
-      // - Cualquier usuario autenticado puede leer lista de profesionales activos
-      // - Esto es necesario para que los usuarios vean el dropdown del calendario
-      allow read: if isAuthenticated() && (request.auth.uid == userId || resource.data.get('rol') == 'profesional');
+      // - Admin: puede leer todos los usuarios
+      // - Autenticado: puede leer su propio documento
+      // - Autenticado: puede leer lista de profesionales activos (para dropdown del calendario)
+      allow read: if isAdminFromFirestore() ||
+                     (isAuthenticated() && request.auth.uid == userId) ||
+                     (isAuthenticated() && resource.data.rol == 'profesional');
       
       // Crear: 
       // - Cualquiera puede crear (para init-demo-admin)
@@ -72,7 +64,7 @@ service cloud.firestore {
       // - Solo admin puede cambiar esAdmin
       allow update: if userId == 'demo-admin-juan' ||
                        (isAuthenticated() && request.auth.uid == userId && 
-                        !('esAdmin' in request.resource.data.diff(resource.data).affectedKeys())) ||
+                        request.resource.data.keys() == resource.data.keys()) ||
                        isAdminFromFirestore();
       
       // Eliminar: solo admin
@@ -126,16 +118,20 @@ service cloud.firestore {
       // Leer: PÚBLICO para que los listeners funcionen correctamente
       allow read: if true;
       
-  // Crear: temporalmente permitir creación pública sin restricciones
-  allow create: if true;
+      // Crear: Profesionales y administrativos pueden crear
+      allow create: if isAuthenticated() && (isProfesional() || isAdministrativo());
       
       // Actualizar:
       // - Administrativo: puede editar cualquier cita
-      allow update: if isAdministrativo();
+      // - Profesional: SOLO citas de sus módulos (donde profesionalId == request.auth.uid)
+      allow update: if isAdministrativo() ||
+                       (isProfesional() && resource.data.profesionalId == request.auth.uid);
       
       // Eliminar:
       // - Administrativo: puede eliminar cualquier cita
-      allow delete: if isAdministrativo();
+      // - Profesional: SOLO citas de sus módulos
+      allow delete: if isAdministrativo() ||
+                       (isProfesional() && resource.data.profesionalId == request.auth.uid);
     }
     
     // ============================================================================
@@ -147,17 +143,20 @@ service cloud.firestore {
       // Leer: TODOS LOS AUTENTICADOS pueden leer módulos
       allow read: if isAuthenticated();
       
-  // Crear: temporalmente permitir creación pública sin restricciones
-  allow create: if true;
+      // Crear: Profesionales y administrativos pueden crear
+      allow create: if isAuthenticated() && (isProfesional() || isAdministrativo());
       
       // Actualizar:
       // - Administrativo: puede editar cualquier módulo
       // - Profesional: SOLO su propio módulo (profesionalId == request.auth.uid)
-      allow update: if isAdministrativo();
+      allow update: if isAdministrativo() ||
+                       (isProfesional() && resource.data.profesionalId == request.auth.uid);
       
       // Eliminar: 
       // - Administrativo: puede eliminar cualquier módulo
-      allow delete: if isAdministrativo();
+      // - Profesional: SOLO su propio módulo
+      allow delete: if isAdministrativo() ||
+                       (isProfesional() && resource.data.profesionalId == request.auth.uid);
     }
     
     // ============================================================================
@@ -184,6 +183,26 @@ service cloud.firestore {
                        (isAuthenticated() &&
                         (resource.data.profesionalId == request.auth.uid ||
                          resource.data.createdBy == request.auth.uid));
+    }
+    
+    // ============================================================================
+    // COLECCIÓN: moduloDefinitions
+    // Definiciones de módulos clasificados por estamento (especialidad)
+    // ============================================================================
+    
+    match /moduloDefinitions/{moduloDefId} {
+      // Leer: TODOS LOS AUTENTICADOS pueden ver las definiciones de módulos
+      // Esto permite que profesionales carguen los módulos según su estamento
+      allow read: if isAuthenticated();
+      
+      // Crear: SOLO administrativos pueden crear definiciones de módulos
+      allow create: if isAdministrativo();
+      
+      // Actualizar: SOLO administrativos pueden editar definiciones
+      allow update: if isAdministrativo();
+      
+      // Eliminar: SOLO administrativos pueden eliminar definiciones
+      allow delete: if isAdministrativo();
     }
     
     // ============================================================================

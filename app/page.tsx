@@ -131,6 +131,8 @@ export default function Home() {
             nombre: data.user.nombre || data.user.email,
             apellidoPaterno: data.user.apellidoPaterno || '',
             apellidoMaterno: data.user.apellidoMaterno || '',
+            profesion: data.user.profesion || '',
+            rol: data.user.rol || 'administrativo',
             esAdmin: data.user.esAdmin || false,
             activo: data.user.activo !== false,
             cambioPasswordRequerido: data.user.cambioPasswordRequerido || false
@@ -145,6 +147,8 @@ export default function Home() {
               nombre: data.user.nombre,
               apellidoPaterno: data.user.apellidoPaterno,
               apellidoMaterno: data.user.apellidoMaterno,
+              profesion: data.user.profesion || '',
+              rol: data.user.rol || 'administrativo',
               esAdmin: data.user.esAdmin,
               cambioPasswordRequerido: data.user.cambioPasswordRequerido,
               expiry: Date.now() + 8 * 60 * 60 * 1000

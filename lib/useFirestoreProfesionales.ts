@@ -8,7 +8,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { db, onAuthStateChange, getCurrentUser } from './firebaseConfig'
+import { db } from './firebaseConfig'
 import { collection, query, where, onSnapshot } from 'firebase/firestore'
 
 export interface Profesional {
@@ -40,29 +40,53 @@ export function useFirestoreProfesionales(): UseFirestoreProfesionalesReturn {
   useEffect(() => {
     setLoading(true)
     setError(null)
-    let unsubscribeQuery: (() => void) | null = null
-    let unsubscribeAuth: (() => void) | null = null
+    let unsubscribe: (() => void) | null = null
 
-    function startQuery() {
-      // Evitar duplicados
-      if (unsubscribeQuery) {
-        try { unsubscribeQuery() } catch {}
-        unsubscribeQuery = null
+    try {
+      // Verificar si hay usuario en localStorage (sesion HTTP)
+      const usuarioGuardado = typeof window !== 'undefined' ? localStorage.getItem('sistema_auth_token') : null
+      
+      if (!usuarioGuardado) {
+        console.log('No hay sesion activa en localStorage. Retornando lista vacia.')
+        setProfesionales([])
+        setError('No autenticado. Por favor, inicia sesion.')
+        setLoading(false)
+        return
       }
 
-      console.log('Buscando profesionales desde Firestore (autenticado)...')
-      const qRef = query(
+      try {
+        const usuario = JSON.parse(usuarioGuardado)
+        console.log('Usuario encontrado en sesion: ' + usuario.email)
+      } catch (e) {
+        console.error('Error parseando datos del usuario:', e)
+        setError('Error en la sesion del usuario')
+        setLoading(false)
+        return
+      }
+
+      console.log('Buscando profesionales desde Firestore...')
+
+      // Crear la consulta a Firestore
+      const q = query(
         collection(db, 'usuarios'),
         where('rol', '==', 'profesional'),
         where('activo', '==', true)
       )
 
-      unsubscribeQuery = onSnapshot(
-        qRef,
+      unsubscribe = onSnapshot(
+        q,
         (snapshot) => {
           const profesionalesList: Profesional[] = []
+          
           snapshot.forEach((doc) => {
-            const data = doc.data() as any
+            const data = doc.data()
+            console.log('Profesional encontrado:')
+            console.log('   - UID: ' + doc.id)
+            console.log('   - Nombre: ' + data.nombre)
+            console.log('   - Email: ' + data.email)
+            console.log('   - Rol: ' + data.rol)
+            console.log('   - Activo: ' + data.activo)
+            
             profesionalesList.push({
               id: doc.id,
               email: data.email || '',
@@ -76,54 +100,47 @@ export function useFirestoreProfesionales(): UseFirestoreProfesionalesReturn {
               activo: data.activo !== false,
               avatar: data.avatar,
               specialties: data.specialties,
-            })
+            } as Profesional)
           })
-
-          console.log('✅ Profesionales cargados: ' + profesionalesList.length)
+          
+          console.log('Total de profesionales cargados desde Firestore: ' + profesionalesList.length)
+          profesionalesList.forEach(p => {
+            console.log('   - ' + p.nombre + ' ' + (p.apellidoPaterno || '') + ' ' + (p.apellidoMaterno || '') + ' (' + p.email + ') - UID: ' + p.id)
+          })
+          
           setProfesionales(profesionalesList.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '')))
           setError(null)
           setLoading(false)
         },
         (err: any) => {
-          console.error('❌ Error al cargar profesionales desde Firestore:', err?.code, err?.message)
-          let errorMessage = err?.message || 'Error desconocido'
-          if (err?.code === 'permission-denied') {
-            errorMessage = 'Permiso denegado al leer profesionales (verifica reglas y autenticación)'
+          console.error('Error al cargar profesionales desde Firestore:', err.code, err.message)
+          
+          let errorMessage = err.message
+          if (err.code === 'permission-denied') {
+            errorMessage = 'Permiso denegado: Verifica las reglas de Firestore para la coleccion usuarios'
+          } else if (err.code === 'unauthenticated') {
+            errorMessage = 'No autenticado: Tu sesion ha expirado'
           }
+          
+          console.error('Detalles del error: ' + errorMessage)
           setError(errorMessage)
           setLoading(false)
         }
       )
-    }
-
-    try {
-      const current = getCurrentUser()
-      if (current) {
-        console.log('✅ Usuario autenticado en Firebase:', current.email)
-        startQuery()
-      } else {
-        console.log('⏳ Esperando autenticación de Firebase...')
-        unsubscribeAuth = onAuthStateChange((user) => {
-          if (user) {
-            console.log('✅ Usuario autenticado en Firebase (listener):', user.email)
-            startQuery()
-          } else {
-            console.log('❌ No autenticado todavía')
-            setProfesionales([])
-            setLoading(false)
-            setError('No autenticado')
-          }
-        })
-      }
     } catch (err: any) {
-      console.error('❌ Error inicializando listener de profesionales:', err)
+      console.error('Error en useFirestoreProfesionales:', err)
       setError(err.message)
       setLoading(false)
     }
 
     return () => {
-      try { if (typeof unsubscribeQuery === 'function') unsubscribeQuery() } catch {}
-      try { if (typeof unsubscribeAuth === 'function') unsubscribeAuth() } catch {}
+      try {
+        if (typeof unsubscribe === 'function') {
+          unsubscribe()
+        }
+      } catch (e) {
+        console.warn('Error limpiando listener:', e)
+      }
     }
   }, [])
 

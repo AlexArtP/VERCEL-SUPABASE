@@ -10,6 +10,8 @@ interface PlantillaListModalProps {
   onClose: () => void
   onEdit: (plantilla: PlantillaModulo) => void
   onDelete: (plantillaId: number) => void
+  currentUser?: { id: string; rol: string; [key: string]: any }
+  selectedProfesionalId?: string | null
 }
 
 export function PlantillaListModal({
@@ -18,9 +20,30 @@ export function PlantillaListModal({
   onClose,
   onEdit,
   onDelete,
+  currentUser,
+  selectedProfesionalId,
 }: PlantillaListModalProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
+
+  // Helpers para control de acceso
+  const isAdmin = currentUser?.rol === "administrativo"
+  const isProfessional = currentUser?.rol === "profesional"
+  const isOwnPlantilla = (plantilla: PlantillaModulo) => {
+    return String(plantilla.profesionalId) === currentUser?.id
+  }
+
+  const canEdit = (plantilla: PlantillaModulo): boolean => {
+    if (isAdmin) return true
+    if (isProfessional && isOwnPlantilla(plantilla)) return true
+    return false
+  }
+
+  const canDelete = (plantilla: PlantillaModulo): boolean => {
+    if (isAdmin) return true
+    if (isProfessional && isOwnPlantilla(plantilla)) return true
+    return false
+  }
 
   // Contar instancias por plantilla
   const getInstanceCount = (plantillaId: number) => {
@@ -101,16 +124,24 @@ export function PlantillaListModal({
 
                       {/* Botones de acción */}
                       <div className="flex gap-2 pt-2">
-                        <button
-                          onClick={() => {
-                            onEdit(plantilla)
-                            setExpandedId(null)
-                          }}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
-                        >
-                          <Edit className="w-4 h-4" />
-                          Editar
-                        </button>
+                        {canEdit(plantilla) ? (
+                          <button
+                            onClick={() => {
+                              onEdit(plantilla)
+                              setExpandedId(null)
+                            }}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+                            title="Editar esta plantilla"
+                          >
+                            <Edit className="w-4 h-4" />
+                            Editar
+                          </button>
+                        ) : (
+                          <div className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-500 rounded-lg opacity-50 cursor-not-allowed" title="No tienes permisos para editar">
+                            <Edit className="w-4 h-4" />
+                            Editar
+                          </div>
+                        )}
 
                         {isDeleting ? (
                           <>
@@ -131,14 +162,20 @@ export function PlantillaListModal({
                               Cancelar
                             </button>
                           </>
-                        ) : (
+                        ) : canDelete(plantilla) ? (
                           <button
                             onClick={() => setConfirmDelete(plantilla.id)}
                             className="flex items-center justify-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                            title="Eliminar esta plantilla"
                           >
                             <Trash2 className="w-4 h-4" />
                             Eliminar
                           </button>
+                        ) : (
+                          <div className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-500 rounded-lg opacity-50 cursor-not-allowed" title="No tienes permisos para eliminar">
+                            <Trash2 className="w-4 h-4" />
+                            Eliminar
+                          </div>
                         )}
                       </div>
                     </div>

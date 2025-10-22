@@ -19,6 +19,7 @@ import {
   addDoc,
   setDoc,
   doc,
+  getDocs,
 } from 'firebase/firestore'
 import {
   getAuth,
@@ -69,14 +70,24 @@ export const auth = getAuth(app)
  *   })
  */
 export function setupModulosListener(
-  profesionalId: number,
-  callback: (modulos: any[]) => void
+  profesionalId: string | number,
+  callback: (modulos: any[]) => void,
+  startISO?: string,
+  endISO?: string,
 ) {
-  // Crear consulta: "Dame todos los módulos de este profesional"
+  // Crear consulta: Módulos del profesional y opcionalmente dentro de un rango de fecha visible (YYYY-MM-DD)
+  const constraints: QueryConstraint[] = [
+    where('profesionalId', '==', String(profesionalId))
+  ]
+  if (startISO) constraints.push(where('fecha', '>=', startISO))
+  if (endISO) constraints.push(where('fecha', '<=', endISO))
+
   const q = query(
     collection(db, 'modulos'),
-    where('profesionalId', '==', profesionalId)
+    ...constraints
   )
+
+  console.log('📡 setupModulosListener: escuchando módulos del profesional:', profesionalId)
 
   // onSnapshot = "escuchar cambios en tiempo real"
   // Retorna una función para dejar de escuchar
@@ -85,8 +96,11 @@ export function setupModulosListener(
       id: doc.id,
       ...doc.data()
     }))
+    console.log('📦 setupModulosListener UPDATE: Se recibieron', modulos.length, 'módulos')
     // Llamar al callback con los datos nuevos
     callback(modulos)
+  }, (error) => {
+    console.error('❌ Error en setupModulosListener:', error)
   })
 }
 
@@ -94,12 +108,20 @@ export function setupModulosListener(
  * Escucha cambios en citas en tiempo real
  */
 export function setupCitasListener(
-  profesionalId: number,
-  callback: (citas: any[]) => void
+  profesionalId: string | number,
+  callback: (citas: any[]) => void,
+  startISO?: string,
+  endISO?: string,
 ) {
+  const constraints: QueryConstraint[] = [
+    where('profesionalId', '==', String(profesionalId))
+  ]
+  if (startISO) constraints.push(where('fecha', '>=', startISO))
+  if (endISO) constraints.push(where('fecha', '<=', endISO))
+
   const q = query(
     collection(db, 'citas'),
-    where('profesionalId', '==', profesionalId)
+    ...constraints
   )
 
   return onSnapshot(q, (snapshot) => {
@@ -113,15 +135,16 @@ export function setupCitasListener(
 
 /**
  * Escucha cambios en plantillas en tiempo real
+ * Nota: obtiene TODAS las plantillas sin filtrar por estamento.
+ * El filtrado por profesional se hace en el componente que las consume.
  */
 export function setupPlantillasListener(
-  profesionalId: number,
+  estamento: string,
   callback: (plantillas: any[]) => void
 ) {
-  const q = query(
-    collection(db, 'plantillas'),
-    where('profesionalId', '==', profesionalId)
-  )
+  // Leer TODAS las plantillas definidas desde la colección "moduloDefinitions"
+  // Sin filtro de estamento para que "Gestionar Módulos" pueda mostrar todas las del profesional
+  const q = query(collection(db, 'moduloDefinitions'))
 
   return onSnapshot(q, (snapshot) => {
     const plantillas = snapshot.docs.map(doc => ({
@@ -257,5 +280,60 @@ export function onAuthStateChange(
  */
 export function getCurrentUser(): User | null {
   return auth.currentUser
+}
+
+/**
+ * FUNCIÓN: Obtener módulos de una semana específica (consulta puntual, no listener)
+ * Útil para cargar dinámicamente módulos de semanas fuera del rango visible
+ */
+export async function getWeekModules(
+  profesionalId: string | number,
+  startISO: string,
+  endISO: string,
+): Promise<any[]> {
+  try {
+    const q = query(
+      collection(db, 'modulos'),
+      where('profesionalId', '==', String(profesionalId)),
+      where('fecha', '>=', startISO),
+      where('fecha', '<=', endISO),
+    )
+    
+    const snapshot = await getDocs(q)
+    const modulos = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+    console.log('📦 getWeekModules: Se obtuvieron', modulos.length, 'módulos para', startISO, '-', endISO)
+    return modulos
+  } catch (error) {
+    console.error('❌ Error en getWeekModules:', error)
+    return []
+  }
+}
+
+/**
+ * FUNCIÓN: Obtener citas de una semana específica (consulta puntual)
+ */
+export async function getWeekCitas(
+  profesionalId: string | number,
+  startISO: string,
+  endISO: string,
+): Promise<any[]> {
+  try {
+    const q = query(
+      collection(db, 'citas'),
+      where('profesionalId', '==', String(profesionalId)),
+      where('fecha', '>=', startISO),
+      where('fecha', '<=', endISO),
+    )
+    const snapshot = await getDocs(q)
+    const citas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    console.log('📦 getWeekCitas:', citas.length, 'citas para', startISO, '-', endISO)
+    return citas
+  } catch (error) {
+    console.error('❌ Error en getWeekCitas:', error)
+    return []
+  }
 }
 
