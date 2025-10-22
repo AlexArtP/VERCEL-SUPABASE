@@ -307,6 +307,10 @@ const handleLogin = async (e: React.FormEvent) => {
           </p>
         </div>
       </div>
+      {/* Versión en esquina inferior derecha */}
+      <div style={{ position: 'fixed', right: 12, bottom: 8, zIndex: 100, pointerEvents: 'none' }}>
+        <span className="text-xs text-gray-400 select-none">V 1.1.1</span>
+      </div>
     </div>
   )
 }
