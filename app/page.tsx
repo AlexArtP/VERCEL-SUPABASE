@@ -255,7 +255,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="text-sm text-blue-200">© 2025 Sistema de Gestión Médica. Todos los derechos reservados.</div>
+        <div className="text-sm text-blue-200">© 2025 Sistema de Gestión Médica. Todos los derechos reservados. Versión 1.1.1 - 22-10-2025</div>
       </div>
 
       {/* Right Panel - Login Form */}
