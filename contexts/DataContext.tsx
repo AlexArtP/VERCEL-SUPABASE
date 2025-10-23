@@ -47,6 +47,10 @@ interface DataContextType {
 
   // CONTROL DE RANGO VISIBLE (para optimizar lecturas)
   setVisibleRange: (startISO: string, endISO: string) => void
+  // Identificador del profesional actualmente activo (puede cambiar en la UI)
+  activeProfesionalId?: string | null
+  // Permite a componentes cambiar el profesional activo (por ejemplo, un selector en CalendarView)
+  setActiveProfesional?: (id?: string | null) => void
 }
 
 // ============================================
@@ -76,7 +80,9 @@ export function DataProvider({
   profesionalId,
 }: {
   children: React.ReactNode
-  profesionalId: number
+  // profesionalId puede venir desde la UI (admin seleccionando otro profesional)
+  // o no venir (en cuyo caso usamos el usuario autenticado)
+  profesionalId?: string | null
 }) {
   // ============================================
   // ESTADO (datos que se guardan)
@@ -98,6 +104,17 @@ export function DataProvider({
     const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0')
     return `${y}-${m}-${dd}`
   })
+
+  // Estado interno que representa el profesional seleccionado en la UI.
+  // Se inicializa desde la prop `profesionalId` si se proporciona.
+  const [activeProfesionalId, setActiveProfesionalId] = useState<string | null>(() => (
+    profesionalId ? String(profesionalId) : null
+  ))
+
+  // Si la prop `profesionalId` cambia (p. ej. el layout la provee), sincronizarla.
+  useEffect(() => {
+    setActiveProfesionalId(profesionalId ? String(profesionalId) : null)
+  }, [profesionalId])
 
   // Estado de autenticación (para no montar listeners sin credenciales)
   const { user, loading: authLoading } = useAuth()
@@ -132,7 +149,13 @@ export function DataProvider({
     }
 
     setLoading(true)
-    // console.log('📡 Activando listeners para profesional:', profesionalId, 'Usuario:', user.uid)
+  // calcular id efectivo: usar la selección (profesionalId) si está presente,
+  // si no, usar el usuario autenticado (user.uid)
+  // El id efectivo se calcula preferentemente desde la selección activa
+  // en la UI (`activeProfesionalId`). Si no existe, usamos el usuario autenticado.
+  const effectiveProfesionalId = activeProfesionalId ? String(activeProfesionalId) : user.uid
+
+  // console.log('📡 Activando listeners para profesional:', effectiveProfesionalId, 'Usuario:', user.uid)
 
     let unsubModulos: (() => void) | undefined
     let unsubCitas: (() => void) | undefined
@@ -141,13 +164,13 @@ export function DataProvider({
     // Lazy-import listeners and db utilities
     import('@/lib/firebaseConfig')
       .then((mod) => {
-        // Usar user.uid (string) en lugar de profesionalId para que coincida con lo guardado en Firestore
-        unsubModulos = mod.setupModulosListener(user.uid, (nuevosModulos: any[]) => {
+        // Usar el id efectivo para los listeners (permite ver agendas de otros profesionales)
+        unsubModulos = mod.setupModulosListener(effectiveProfesionalId, (nuevosModulos: any[]) => {
           setModulos(nuevosModulos)
           setLoading(false)
         }, visibleStart, visibleEnd)
 
-        unsubCitas = mod.setupCitasListener(user.uid, (nuevasCitas: any[]) => {
+        unsubCitas = mod.setupCitasListener(effectiveProfesionalId, (nuevasCitas: any[]) => {
           setCitas(nuevasCitas)
           setLoading(false)
         }, visibleStart, visibleEnd)
@@ -172,7 +195,7 @@ export function DataProvider({
       if (unsubCitas) unsubCitas()
       if (unsubPlantillas) unsubPlantillas()
     }
-  }, [authLoading, user, profesionalId, visibleStart, visibleEnd])
+  }, [authLoading, user, activeProfesionalId, visibleStart, visibleEnd])
 
   // ============================================
   // FUNCIONES: CREAR, EDITAR, ELIMINAR
@@ -213,10 +236,12 @@ export function DataProvider({
       try {
         // 2. CONSTRUIR EL OBJETO CORRECTO
         //    Ignoramos cualquier 'profesionalId' que venga en 'modulo'
-        //    y forzamos el 'profesionalId' del usuario autenticado.
+        //    y forzamos el 'profesionalId' efectivo (selección o usuario autenticado).
+        const targetProfesionalId = profesionalId ? String(profesionalId) : user.uid
+
         const moduloParaGuardar = {
           ...modulo,
-          profesionalId: user.uid, // <-- LA CORRECCIÓN CLAVE
+          profesionalId: targetProfesionalId,
           createdAt: new Date().toISOString(),
         }
         
@@ -235,7 +260,7 @@ export function DataProvider({
         throw err
       }
     },
-    [user] // 3. AÑADIR 'user' A LAS DEPENDENCIAS
+  [user, profesionalId, activeProfesionalId] // 3. AÑADIR 'user' Y 'profesionalId' A LAS DEPENDENCIAS
          //    Esto asegura que la función se "re-crea"
          //    cuando 'user' cambia (de null a logueado).
   )
@@ -260,9 +285,10 @@ export function DataProvider({
 
         lista.forEach((m) => {
           const docRef = doc(colRef) // ID auto-generado
+          const targetProfesionalId = activeProfesionalId ? String(activeProfesionalId) : (profesionalId ? String(profesionalId) : user.uid)
           batch.set(docRef, {
             ...m,
-            profesionalId: user.uid, // forzar pertenencia al usuario autenticado
+            profesionalId: targetProfesionalId, // forzar pertenencia al profesional seleccionado o al usuario autenticado
             createdAt: new Date().toISOString(),
           })
         })
@@ -458,6 +484,8 @@ export function DataProvider({
         updatePlantilla,
         deletePlantilla,
         setVisibleRange: (startISO: string, endISO: string) => { setVisibleStart(startISO); setVisibleEnd(endISO) },
+        activeProfesionalId,
+        setActiveProfesional: (id?: string | null) => setActiveProfesionalId(id ?? null),
       }}
     >
       {children}

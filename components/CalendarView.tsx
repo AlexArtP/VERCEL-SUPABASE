@@ -15,6 +15,7 @@ import { PROFESIONES } from "@/lib/validations"
 import { ModuloListModal } from "./ModuloListModal"
 import { PlantillaListModal } from "./PlantillaListModal"
 import { useFirestoreProfesionales } from "@/lib/useFirestoreProfesionales"
+import { useData } from "@/contexts/DataContext"
 import { useFirestoreCitas } from "@/lib/useFirestoreCitas"
 // TimePickerClock removed: no longer used in this modal
 
@@ -218,6 +219,9 @@ export function CalendarView(props: CalendarViewProps) {
   const calendarContainerRef = useRef<HTMLDivElement>(null)
   const [selectedProfesionalId, setSelectedProfesionalId] = useState<string | null>(null)
 
+  // Conectar con DataContext para propagar la selección global
+  const dataContext = useData()
+
   // Preseleccionar el profesional actual por defecto (evita filtros vacíos)
   useEffect(() => {
     if (!selectedProfesionalId && currentUser?.id) {
@@ -226,6 +230,13 @@ export function CalendarView(props: CalendarViewProps) {
       } catch (_) {}
     }
   }, [currentUser, selectedProfesionalId])
+
+  // Si DataContext tiene activeProfesionalId, sincronizar el selector local con él
+  useEffect(() => {
+    if (dataContext?.activeProfesionalId) {
+      setSelectedProfesionalId(String(dataContext.activeProfesionalId))
+    }
+  }, [dataContext?.activeProfesionalId])
 
   // 🔥 NUEVO: Obtener profesionales de Firestore
   const { profesionales: profesionalesFirestore, loading: profesionalesLoading, error: profesionalesError } = useFirestoreProfesionales()
@@ -925,7 +936,7 @@ export function CalendarView(props: CalendarViewProps) {
 
       <div className="mt-4 w-full flex flex-col items-start">
         <label htmlFor="profesional-select" className="mb-1 text-sm font-semibold text-gray-700">Profesionales registrados</label>
-        <select id="profesional-select" className="w-full px-4 py-3 rounded-xl border-2 border-blue-400 bg-gradient-to-r from-blue-100 via-white to-blue-100 text-blue-900 font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-600 hover:shadow-xl" value={selectedProfesionalId ?? ""} onChange={(e) => { const val = e.target.value; setSelectedProfesionalId(val || null); setSelectedModulos([]); setSelectedModulo(null); setContextMenu(null) }}>
+  <select id="profesional-select" className="w-full px-4 py-3 rounded-xl border-2 border-blue-400 bg-gradient-to-r from-blue-100 via-white to-blue-100 text-blue-900 font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-600 hover:shadow-xl" value={selectedProfesionalId ?? ""} onChange={(e) => { const val = e.target.value; setSelectedProfesionalId(val || null); setSelectedModulos([]); setSelectedModulo(null); setContextMenu(null); if (dataContext?.setActiveProfesional) dataContext.setActiveProfesional(val || null); }}>
           <option value="">Selecciona un profesional...</option>
           {profesionalesActuales.map((u: any) => (
             <option key={u.id} value={String(u.id)} className="py-2">{u.nombre} {u.apellidoPaterno ? u.apellidoPaterno : ""} {u.apellidoMaterno ? u.apellidoMaterno : ""} - {u.profesion}{u.cargo ? ` / ${u.cargo}` : ""}</option>

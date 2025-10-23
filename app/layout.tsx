@@ -24,9 +24,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  // TODO: Obtener profesionalId del usuario autenticado
-  // Por ahora usamos 1 como ejemplo
-  const profesionalId = 1
+  // TODO: Obtener profesionalId desde la UI (selección) o del usuario autenticado.
+  // No pasar un valor hardcodeado aquí para evitar forzar siempre el calendario de un único profesional.
+  const profesionalId = undefined
 
   return (
     <html lang="en">

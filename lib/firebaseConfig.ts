@@ -37,7 +37,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyB8kRSzHD_H1_NhF8Rr-yF2gFPukpZJ5rM",
   authDomain: "agendacecosam.firebaseapp.com",
   projectId: "agendacecosam",
-  storageBucket: "agendacecosam.firebasestorage.app",
+  storageBucket: "agendacecosam.appspot.com",
   messagingSenderId: "66728286123",
   appId: "1:66728286123:web:287a51b05cb848644ea4ee"
 }

@@ -45,13 +45,22 @@ service cloud.firestore {
       // lea el documento del usuario cuando se evalúan otras reglas
       allow get: if true;
       
-      // Leer:
+      // Leer (single document - get):
       // - Admin: puede leer todos los usuarios
       // - Autenticado: puede leer su propio documento
-      // - Autenticado: puede leer lista de profesionales activos (para dropdown del calendario)
       allow read: if isAdminFromFirestore() ||
                      (isAuthenticated() && request.auth.uid == userId) ||
                      (isAuthenticated() && resource.data.rol == 'profesional');
+
+      // List (queries over the collection): permitir que usuarios autenticados
+      // obtengan la lista de profesionales activos para poblar dropdowns. Para
+      // evitar exponer otros perfiles, sólo permitimos la operación cuando la
+      // consulta incluye los filtros esperados: rol == 'profesional' y activo == true.
+      allow list: if isAdminFromFirestore() || (
+        isAuthenticated() &&
+        // Asegurar que la consulta filtre por rol == 'profesional' y activo == true
+        request.query.where('rol', '==', 'profesional') && request.query.where('activo', '==', true)
+      );
       
       // Crear: 
       // - Cualquiera puede crear (para init-demo-admin)
@@ -142,21 +151,24 @@ service cloud.firestore {
     match /modulos/{moduloId} {
       // Leer: TODOS LOS AUTENTICADOS pueden leer módulos
       allow read: if isAuthenticated();
-      
-      // Crear: Profesionales y administrativos pueden crear
-      allow create: if isAuthenticated() && (isProfesional() || isAdministrativo());
-      
+
+      // Crear:
+      // - Administrativo: puede crear cualquier módulo
+      // - Profesional: SOLO puede crear módulos donde profesionalId == request.auth.uid
+      allow create: if isAdministrativo() ||
+        (isProfesional() && request.resource.data.profesionalId == request.auth.uid);
+
       // Actualizar:
       // - Administrativo: puede editar cualquier módulo
-      // - Profesional: SOLO su propio módulo (profesionalId == request.auth.uid)
+      // - Profesional: SOLO puede editar módulos donde profesionalId == request.auth.uid
       allow update: if isAdministrativo() ||
-                       (isProfesional() && resource.data.profesionalId == request.auth.uid);
-      
-      // Eliminar: 
+        (isProfesional() && resource.data.profesionalId == request.auth.uid);
+
+      // Eliminar:
       // - Administrativo: puede eliminar cualquier módulo
-      // - Profesional: SOLO su propio módulo
+      // - Profesional: SOLO puede eliminar módulos donde profesionalId == request.auth.uid
       allow delete: if isAdministrativo() ||
-                       (isProfesional() && resource.data.profesionalId == request.auth.uid);
+        (isProfesional() && resource.data.profesionalId == request.auth.uid);
     }
     
     // ============================================================================
