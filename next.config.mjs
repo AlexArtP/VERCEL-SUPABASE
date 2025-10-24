@@ -1,3 +1,8 @@
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -9,6 +14,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Fijar la raíz de output tracing para evitar que Next.js infiera
+  // el workspace root desde otros lockfiles en el sistema
+  outputFileTracingRoot: resolve(__dirname),
   // Comentar output: 'export' para permitir API routes dinámicos
   // output: 'export',
   // Desabilitar caché de webpack en Windows para evitar ENOENT errors

@@ -37,10 +37,10 @@ const firebaseConfig = {
   apiKey: "AIzaSyB8kRSzHD_H1_NhF8Rr-yF2gFPukpZJ5rM",
   authDomain: "agendacecosam.firebaseapp.com",
   projectId: "agendacecosam",
-  storageBucket: "agendacecosam.appspot.com",
+  storageBucket: "agendacecosam.firebasestorage.app",
   messagingSenderId: "66728286123",
   appId: "1:66728286123:web:287a51b05cb848644ea4ee"
-}
+};
 
 // PASO 2: Inicializar Firebase (evitar duplicados en Next.js build)
 // Usa getApps() para detectar si ya existe una app inicializada

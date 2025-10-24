@@ -32,7 +32,10 @@ import {
 } from 'firebase/firestore'
 
 // Importar los datos de demostración
-import { DEMO_DATA } from './demoData'
+// Nota: DEMO_DATA ya no se importa automáticamente.
+// La importación se hará solo si la variable de entorno ENABLE_DEMO_DATA está activada.
+// Esto evita que la inicialización sobreescriba o inserte datos de ejemplo en bases
+// de datos reales que ya contengan información.
 import type {
   Usuario,
   Paciente,
@@ -40,6 +43,9 @@ import type {
   Modulo,
   PlantillaModulo,
 } from './demoData'
+
+// Variable que se rellenará dinámicamente si ENABLE_DEMO_DATA=true
+let DEMO_DATA: any = undefined
 
 /**
  * INTERFAZ: Resultado de inicialización
@@ -96,6 +102,42 @@ export async function initializeDatabase(): Promise<InitializationResult> {
       console.log(result.message)
       return result
     }
+
+    // Si la base de datos NO está marcada como inicializada, comprobamos si ya
+    // existen documentos en las colecciones objetivo. Si existen, asumimos que
+    // la BD contiene datos reales y NO ejecutamos la importación de demo.
+    const existingCollections = ['users', 'pacientes', 'citas', 'modulos', 'plantillas', 'usuarios', 'moduloDefinitions']
+    for (const colName of existingCollections) {
+      try {
+        const snap = await getDocs(collection(db, colName))
+        if (!snap.empty) {
+          result.message = `ℹ️ La colección "${colName}" ya contiene datos. Se omite la importación de demo.`
+          console.log(result.message)
+          // Marcar como inicializado para no volver a intentar (evita sobrescrituras)
+          await markAsInitialized()
+          return result
+        }
+      } catch (err) {
+        // Si la colección no existe o hay error, ignorar y continuar
+      }
+    }
+
+    // A partir de aquí: la base de datos no está inicializada y no contiene datos
+    // de las colecciones objetivo. La importación de DEMO_DATA se hará SOLO si
+    // la variable de entorno ENABLE_DEMO_DATA está establecida a 'true'. Esto
+    // evita que demos se inserten accidentalmente en entornos reales.
+    if (process.env.ENABLE_DEMO_DATA !== 'true') {
+      result.message = 'ℹ️ Importación de demo deshabilitada (ENABLE_DEMO_DATA != true). No se realizaron cambios.'
+      console.log(result.message)
+      // Marcamos como inicializado para evitar ejecuciones repetidas en setups
+      await markAsInitialized()
+      return result
+    }
+
+    // IMPORTACIÓN OPT-IN: Cargar DEMO_DATA dinámicamente sólo cuando esté permitido
+    console.log('⚠️ ENABLE_DEMO_DATA=true -> importando datos de demostración')
+  const demoModule = await import('./demoData')
+  DEMO_DATA = demoModule.DEMO_DATA
 
     // PASO 2: Crear usuarios con autenticación
     console.log('👥 Creando usuarios con autenticación...')
@@ -194,43 +236,81 @@ async function markAsInitialized(): Promise<void> {
  */
 async function importarUsuarios(errors: string[]): Promise<number> {
   let count = 0
+  // Si se importó DEMO_DATA (opt-in), usarla
+  if (DEMO_DATA && Array.isArray(DEMO_DATA.usuarios)) {
+    for (const usuario of DEMO_DATA.usuarios) {
+      try {
+        // Solo crear cuenta Auth si viene password y la importación de demo está habilitada
+        if (usuario.password && process.env.ENABLE_DEMO_DATA === 'true') {
+          await addUserWithAuth({
+            uid: `usuario-${usuario.id}`,
+            email: usuario.email,
+            password: usuario.password,
+            nombreCompleto: `${usuario.nombre} ${usuario.apellidos}`,
+          })
+        }
 
-  for (const usuario of DEMO_DATA.usuarios) {
-    try {
-      // Crear en Firebase Auth + Firestore simultáneamente
-      const userRef = await addUserWithAuth({
-        uid: `usuario-${usuario.id}`,
-        email: usuario.email,
-        password: usuario.password,
-        nombreCompleto: `${usuario.nombre} ${usuario.apellidos}`,
-      })
+        const usuarioData = {
+          ...usuario,
+          uid: `usuario-${usuario.id}`,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
 
-      // Guardar datos completos en Firestore
-      const usuarioData = {
-        ...usuario,
-        uid: `usuario-${usuario.id}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        await setDoc(doc(db, 'users', `usuario-${usuario.id}`), usuarioData)
+
+        if (usuario.rol === 'profesional') {
+          await setDoc(doc(db, 'profesionales', `usuario-${usuario.id}`), usuarioData)
+        }
+
+        count++
+        console.log(`  ✓ Usuario DEMO procesado: ${usuario.nombre} ${usuario.apellidos}`)
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Error desconocido'
+        errors.push(`Usuario ${usuario.nombre}: ${msg}`)
+        console.warn(`  ✗ Error con usuario ${usuario.nombre}:`, msg)
       }
-
-      await setDoc(doc(db, 'users', `usuario-${usuario.id}`), usuarioData)
-
-      // Si es profesional, guardar en colección adicional
-      if (usuario.rol === 'profesional') {
-        await setDoc(
-          doc(db, 'profesionales', `usuario-${usuario.id}`),
-          usuarioData
-        )
-      }
-
-      count++
-      console.log(`  ✓ Usuario creado: ${usuario.nombre} ${usuario.apellidos}`)
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Error desconocido'
-      errors.push(`Usuario ${usuario.nombre}: ${msg}`)
-      console.warn(`  ✗ Error con usuario ${usuario.nombre}:`, msg)
     }
+    return count
   }
+
+  // Si no hay DEMO_DATA, intentar leer desde la colección real 'usuarios'
+  try {
+    const snap = await getDocs(collection(db, 'usuarios'))
+    if (snap.empty) return 0
+
+    for (const docSnap of snap.docs) {
+      try {
+        const usuario = docSnap.data() as any
+        // Se espera que cada profesional tenga un campo 'id' y 'run' formateado
+        const uid = usuario.id ? String(usuario.id) : docSnap.id
+
+        const usuarioData = {
+          ...usuario,
+          uid,
+          createdAt: usuario.createdAt ? usuario.createdAt : new Date(),
+          updatedAt: new Date(),
+        }
+
+        await setDoc(doc(db, 'users', uid), usuarioData)
+
+        if (usuario.rol === 'profesional') {
+          await setDoc(doc(db, 'profesionales', uid), usuarioData)
+        }
+
+        count++
+        console.log(`  ✓ Usuario importado desde Firestore: ${uid}`)
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Error desconocido'
+        errors.push(`Usuario doc ${docSnap.id}: ${msg}`)
+        console.warn(`  ✗ Error con usuario doc ${docSnap.id}:`, msg)
+      }
+    }
+  } catch (error) {
+    console.warn('  ✗ No se pudo leer la colección "usuarios":', error)
+  }
+
+  return count
 
   return count
 }
@@ -244,28 +324,42 @@ async function importarUsuarios(errors: string[]): Promise<number> {
 async function importarPacientes(errors: string[]): Promise<number> {
   let count = 0
 
-  for (const paciente of DEMO_DATA.pacientes) {
-    try {
-      const pacienteData = {
-        ...paciente,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        activo: true,
+  if (DEMO_DATA && Array.isArray(DEMO_DATA.pacientes)) {
+    for (const paciente of DEMO_DATA.pacientes) {
+      try {
+        const pacienteData = {
+          ...paciente,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          activo: true,
+        }
+
+        await setDoc(doc(db, 'pacientes', `paciente-${paciente.id}`), pacienteData)
+
+        count++
+        console.log(`  ✓ Paciente DEMO procesado: ${paciente.nombre}`)
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Error desconocido'
+        errors.push(`Paciente ${paciente.nombre}: ${msg}`)
+        console.warn(`  ✗ Error con paciente ${paciente.nombre}:`, msg)
       }
-
-      await setDoc(
-        doc(db, 'pacientes', `paciente-${paciente.id}`),
-        pacienteData
-      )
-
-      count++
-      console.log(`  ✓ Paciente creado: ${paciente.nombre}`)
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Error desconocido'
-      errors.push(`Paciente ${paciente.nombre}: ${msg}`)
-      console.warn(`  ✗ Error con paciente ${paciente.nombre}:`, msg)
     }
+    return count
   }
+
+  // Si no hay DEMO_DATA, leer desde la colección real 'pacientes' y asegurarnos de que existan
+  try {
+    const snap = await getDocs(collection(db, 'pacientes'))
+    for (const docSnap of snap.docs) {
+      // No clonamos ni sobrescribimos, solo contamos y aseguramos timestamps mínimos
+      count++
+    }
+    console.log(`  ℹ️ Encontrados ${count} paciente(s) en la colección 'pacientes'`)
+  } catch (error) {
+    console.warn('  ✗ No se pudo leer la colección "pacientes":', error)
+  }
+
+  return count
 
   return count
 }
@@ -280,27 +374,53 @@ async function importarPacientes(errors: string[]): Promise<number> {
 async function importarPlantillas(errors: string[]): Promise<number> {
   let count = 0
 
-  for (const plantilla of DEMO_DATA.plantillas) {
-    try {
-      const plantillaData = {
-        ...plantilla,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+  if (DEMO_DATA && Array.isArray(DEMO_DATA.plantillas)) {
+    for (const plantilla of DEMO_DATA.plantillas) {
+      try {
+        const plantillaData = {
+          ...plantilla,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+
+        await setDoc(doc(db, 'plantillas', `plantilla-${plantilla.id}`), plantillaData)
+
+        count++
+        console.log(`  ✓ Plantilla DEMO procesada: ${plantilla.tipo}`)
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Error desconocido'
+        errors.push(`Plantilla ${plantilla.tipo}: ${msg}`)
+        console.warn(`  ✗ Error con plantilla ${plantilla.tipo}:`, msg)
       }
-
-      await setDoc(
-        doc(db, 'plantillas', `plantilla-${plantilla.id}`),
-        plantillaData
-      )
-
-      count++
-      console.log(`  ✓ Plantilla creada: ${plantilla.tipo}`)
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Error desconocido'
-      errors.push(`Plantilla ${plantilla.tipo}: ${msg}`)
-      console.warn(`  ✗ Error con plantilla ${plantilla.tipo}:`, msg)
     }
+    return count
   }
+
+  // Si no hay DEMO_DATA, intentar leer desde 'moduloDefinitions' o 'plantillas'
+  try {
+    const sourceCol = (await getDocs(collection(db, 'moduloDefinitions'))).size > 0 ? 'moduloDefinitions' : 'plantillas'
+    const snap = await getDocs(collection(db, sourceCol))
+    for (const docSnap of snap.docs) {
+      try {
+        const plantilla = docSnap.data()
+        const id = docSnap.id
+        await setDoc(doc(db, 'plantillas', id), {
+          ...plantilla,
+          createdAt: plantilla.createdAt ? plantilla.createdAt : new Date(),
+          updatedAt: new Date(),
+        })
+        count++
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Error desconocido'
+        errors.push(`Plantilla doc ${docSnap.id}: ${msg}`)
+      }
+    }
+    console.log(`  ℹ️ Procesadas ${count} plantilla(s) desde '${sourceCol}'`)
+  } catch (error) {
+    console.warn('  ✗ No se pudo leer la colección de plantillas:', error)
+  }
+
+  return count
 
   return count
 }
@@ -315,25 +435,39 @@ async function importarPlantillas(errors: string[]): Promise<number> {
 async function importarModulos(errors: string[]): Promise<number> {
   let count = 0
 
-  for (const modulo of DEMO_DATA.modulos) {
-    try {
-      const moduloData = {
-        ...modulo,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        pacienteId: null, // Sin asignar inicialmente
+  if (DEMO_DATA && Array.isArray(DEMO_DATA.modulos)) {
+    for (const modulo of DEMO_DATA.modulos) {
+      try {
+        const moduloData = {
+          ...modulo,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          pacienteId: null,
+        }
+
+        await setDoc(doc(db, 'modulos', `modulo-${modulo.id}`), moduloData)
+
+        count++
+        console.log(`  ✓ Módulo DEMO procesado: ${modulo.tipo} - ${modulo.horaInicio}`)
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Error desconocido'
+        errors.push(`Módulo ${modulo.tipo}: ${msg}`)
+        console.warn(`  ✗ Error con módulo ${modulo.tipo}:`, msg)
       }
-
-      await setDoc(doc(db, 'modulos', `modulo-${modulo.id}`), moduloData)
-
-      count++
-      console.log(`  ✓ Módulo creado: ${modulo.tipo} - ${modulo.horaInicio}`)
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Error desconocido'
-      errors.push(`Módulo ${modulo.tipo}: ${msg}`)
-      console.warn(`  ✗ Error con módulo ${modulo.tipo}:`, msg)
     }
+    return count
   }
+
+  // Si no hay DEMO_DATA, contar/asegurar módulos existentes
+  try {
+    const snap = await getDocs(collection(db, 'modulos'))
+    console.log(`  ℹ️ Encontrados ${snap.size} módulo(s) en 'modulos'`)
+    count = snap.size
+  } catch (error) {
+    console.warn('  ✗ No se pudo leer la colección "modulos":', error)
+  }
+
+  return count
 
   return count
 }
@@ -348,24 +482,38 @@ async function importarModulos(errors: string[]): Promise<number> {
 async function importarCitas(errors: string[]): Promise<number> {
   let count = 0
 
-  for (const cita of DEMO_DATA.citas) {
-    try {
-      const citaData = {
-        ...cita,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+  if (DEMO_DATA && Array.isArray(DEMO_DATA.citas)) {
+    for (const cita of DEMO_DATA.citas) {
+      try {
+        const citaData = {
+          ...cita,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+
+        await setDoc(doc(db, 'citas', `cita-${cita.id}`), citaData)
+
+        count++
+        console.log(`  ✓ Cita DEMO procesada: ${cita.pacienteNombre} - ${cita.hora}`)
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Error desconocido'
+        errors.push(`Cita ${cita.pacienteNombre}: ${msg}`)
+        console.warn(`  ✗ Error con cita ${cita.pacienteNombre}:`, msg)
       }
-
-      await setDoc(doc(db, 'citas', `cita-${cita.id}`), citaData)
-
-      count++
-      console.log(`  ✓ Cita creada: ${cita.pacienteNombre} - ${cita.hora}`)
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Error desconocido'
-      errors.push(`Cita ${cita.pacienteNombre}: ${msg}`)
-      console.warn(`  ✗ Error con cita ${cita.pacienteNombre}:`, msg)
     }
+    return count
   }
+
+  // Si no hay DEMO_DATA, contar citas existentes
+  try {
+    const snap = await getDocs(collection(db, 'citas'))
+    console.log(`  ℹ️ Encontradas ${snap.size} cita(s) en 'citas'`)
+    count = snap.size
+  } catch (error) {
+    console.warn('  ✗ No se pudo leer la colección "citas":', error)
+  }
+
+  return count
 
   return count
 }

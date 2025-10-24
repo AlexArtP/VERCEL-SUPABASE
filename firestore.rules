@@ -11,17 +11,15 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Verificar si el usuario es admin LEYENDO desde el documento en Firestore
+    // Optimización de funciones auxiliares
     function isAdminFromFirestore() {
-      return isAuthenticated() && 
-             exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.esAdmin == true;
+      return isAuthenticated() &&
+             getUserRole() == 'admin'; // Usar rol directamente en lugar de múltiples lecturas
     }
-    
-    // Obtener el rol del usuario desde Firestore (con manejo de errores)
+
     function getUserRole() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) 
-        ? get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol 
+      return isAuthenticated() && request.auth.token.role != null
+        ? request.auth.token.role // Usar customClaims para roles
         : null;
     }
 
@@ -56,16 +54,20 @@ service cloud.firestore {
       // obtengan la lista de profesionales activos para poblar dropdowns. Para
       // evitar exponer otros perfiles, sólo permitimos la operación cuando la
       // consulta incluye los filtros esperados: rol == 'profesional' y activo == true.
+      // Corregir validación de consultas en usuarios eliminando `where`
       allow list: if isAdminFromFirestore() || (
         isAuthenticated() &&
-        // Asegurar que la consulta filtre por rol == 'profesional' y activo == true
-        request.query.where('rol', '==', 'profesional') && request.query.where('activo', '==', true)
+        request.query.limit <= 50 && // Limitar resultados
+        request.query.hasOnly(['rol', 'activo']) && // Validar filtros permitidos
+        resource.data.rol == 'profesional' &&
+        resource.data.activo == true // Validar directamente los campos
       );
       
       // Crear: 
       // - Cualquiera puede crear (para init-demo-admin)
       // - Solo autenticados pueden crear su propio perfil
-      allow create: if true;
+      allow create: if request.resource.data.keys().hasAll(['nombre', 'email', 'rol']) &&
+                      request.resource.data.rol in ['profesional', 'administrativo'];
       
       // Actualizar: 
       // - Permitir actualización del usuario demo sin restricción (para init)
@@ -87,7 +89,7 @@ service cloud.firestore {
     
     match /solicitudRegistro/{solicitudId} {
       // Leer: PÚBLICO (necesario para listeners de admin)
-      allow read: if true;
+      allow read: if isAdminFromFirestore(); // Restringir lectura pública
       
       // Crear: CUALQUIERA puede crear (público, sin autenticación, para registro)
       allow create: if true;
@@ -106,7 +108,7 @@ service cloud.firestore {
     
     match /solicitudes/{solicitudId} {
       // Leer: Permitir lectura pública (necesario para listeners de admin)
-      allow read: if true;
+      allow read: if isAdminFromFirestore(); // Restringir lectura pública
       
       // Crear: CUALQUIERA puede crear (público, sin autenticación)
       allow create: if true;
@@ -127,19 +129,30 @@ service cloud.firestore {
       // Leer: PÚBLICO para que los listeners funcionen correctamente
       allow read: if true;
       
-      // Crear: Profesionales y administrativos pueden crear
-      allow create: if isAuthenticated() && (isProfesional() || isAdministrativo());
+      // Crear: 
+      // - Admin (esAdmin=true): puede crear en cualquier agenda
+      // - Administrativo: puede crear en cualquier agenda
+      // - Profesional: SOLO puede crear en su propia agenda (profesionalId == request.auth.uid)
+      allow create: if isAuthenticated() && (
+        isAdministrativo() ||
+        isAdminFromFirestore() ||
+        (isProfesional() && request.resource.data.profesionalId == request.auth.uid)
+      );
       
       // Actualizar:
+      // - Admin (esAdmin=true): puede editar cualquier cita
       // - Administrativo: puede editar cualquier cita
-      // - Profesional: SOLO citas de sus módulos (donde profesionalId == request.auth.uid)
+      // - Profesional: SOLO citas de su propia agenda (profesionalId == request.auth.uid)
       allow update: if isAdministrativo() ||
+                       isAdminFromFirestore() ||
                        (isProfesional() && resource.data.profesionalId == request.auth.uid);
       
       // Eliminar:
+      // - Admin (esAdmin=true): puede eliminar cualquier cita
       // - Administrativo: puede eliminar cualquier cita
-      // - Profesional: SOLO citas de sus módulos
+      // - Profesional: SOLO citas de su propia agenda (profesionalId == request.auth.uid)
       allow delete: if isAdministrativo() ||
+                       isAdminFromFirestore() ||
                        (isProfesional() && resource.data.profesionalId == request.auth.uid);
     }
     
@@ -153,21 +166,27 @@ service cloud.firestore {
       allow read: if isAuthenticated();
 
       // Crear:
-      // - Administrativo: puede crear cualquier módulo
-      // - Profesional: SOLO puede crear módulos donde profesionalId == request.auth.uid
+      // - Admin (esAdmin=true): puede crear en cualquier agenda
+      // - Administrativo: puede crear en cualquier agenda
+      // - Profesional: SOLO puede crear módulos en su propia agenda (profesionalId == request.auth.uid)
       allow create: if isAdministrativo() ||
+        isAdminFromFirestore() ||
         (isProfesional() && request.resource.data.profesionalId == request.auth.uid);
 
       // Actualizar:
+      // - Admin (esAdmin=true): puede editar cualquier módulo
       // - Administrativo: puede editar cualquier módulo
-      // - Profesional: SOLO puede editar módulos donde profesionalId == request.auth.uid
+      // - Profesional: SOLO puede editar módulos en su propia agenda (profesionalId == request.auth.uid)
       allow update: if isAdministrativo() ||
+        isAdminFromFirestore() ||
         (isProfesional() && resource.data.profesionalId == request.auth.uid);
 
       // Eliminar:
+      // - Admin (esAdmin=true): puede eliminar cualquier módulo
       // - Administrativo: puede eliminar cualquier módulo
-      // - Profesional: SOLO puede eliminar módulos donde profesionalId == request.auth.uid
+      // - Profesional: SOLO puede eliminar módulos en su propia agenda (profesionalId == request.auth.uid)
       allow delete: if isAdministrativo() ||
+        isAdminFromFirestore() ||
         (isProfesional() && resource.data.profesionalId == request.auth.uid);
     }
     
@@ -207,14 +226,25 @@ service cloud.firestore {
       // Esto permite que profesionales carguen los módulos según su estamento
       allow read: if isAuthenticated();
       
-      // Crear: SOLO administrativos pueden crear definiciones de módulos
-      allow create: if isAdministrativo();
-      
-      // Actualizar: SOLO administrativos pueden editar definiciones
-      allow update: if isAdministrativo();
-      
-      // Eliminar: SOLO administrativos pueden eliminar definiciones
-      allow delete: if isAdministrativo();
+      // Crear: Administrativos y profesionales pueden crear definiciones de módulos
+      // (los profesionales crean sus propias plantillas / definiciones)
+      allow create: if isAdministrativo() || isProfesional();
+
+      // Actualizar: Administrativo o el propietario (profesionalId o createdBy)
+      allow update: if isAdministrativo() || (
+        isAuthenticated() && (
+          resource.data.profesionalId == request.auth.uid ||
+          resource.data.createdBy == request.auth.uid
+        )
+      );
+
+      // Eliminar: Administrativo o el propietario
+      allow delete: if isAdministrativo() || (
+        isAuthenticated() && (
+          resource.data.profesionalId == request.auth.uid ||
+          resource.data.createdBy == request.auth.uid
+        )
+      );
     }
     
     // ============================================================================
