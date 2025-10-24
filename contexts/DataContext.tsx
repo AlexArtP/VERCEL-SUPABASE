@@ -344,6 +344,49 @@ export function DataProvider({
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Error al eliminar módulo'
       console.error('❌ Error:', errorMsg)
+
+      // Si es un error de permisos, intentar obtener contexto adicional
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const code = (err as any)?.code || ''
+        if (code === 'permission-denied') {
+          console.warn('↳ Detected permission-denied when deleting módulo. Gathering debug info...')
+          const mod = await import('@/lib/firebaseConfig')
+          const { doc, getDoc } = await import('firebase/firestore')
+          // Intentar leer el documento del módulo (read debería estar permitido para autenticados)
+          try {
+            const moduleDocRef = doc(mod.db, 'modulos', id.toString())
+            const moduleSnap = await getDoc(moduleDocRef)
+            if (moduleSnap.exists()) {
+              console.warn('📄 módulo doc data:', moduleSnap.data())
+            } else {
+              console.warn('📄 módulo doc no existe (id):', id)
+            }
+          } catch (readErr) {
+            console.warn('⚠️ No se pudo leer módulo para debug:', readErr)
+          }
+
+          // Intentar leer el perfil del usuario autenticado para ver su rol/uid
+          try {
+            if (user) {
+              const userDocRef = doc(mod.db, 'usuarios', user.uid)
+              const userSnap = await getDoc(userDocRef)
+              if (userSnap.exists()) {
+                console.warn('👤 usuario doc data:', userSnap.data())
+              } else {
+                console.warn('👤 usuario doc no existe para uid:', user.uid)
+              }
+            } else {
+              console.warn('👤 Usuario no disponible en contexto (no autenticado)')
+            }
+          } catch (readErr2) {
+            console.warn('⚠️ No se pudo leer usuario para debug:', readErr2)
+          }
+        }
+      } catch (dbgErr) {
+        console.warn('⚠️ Error recogiendo info de debug:', dbgErr)
+      }
+
       setError(errorMsg)
       throw err
     }
