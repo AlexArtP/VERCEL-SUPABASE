@@ -32,8 +32,8 @@ interface DataContextType {
   // FUNCIONES para MÓDULOS
   addModulo: (modulo: Omit<Modulo, 'id'>) => Promise<void>
   addModulosBatch?: (modulos: Omit<Modulo, 'id'>[]) => Promise<void>
-  updateModulo: (id: number, updates: Partial<Modulo>) => Promise<void>
-  deleteModulo: (id: number) => Promise<void>
+  updateModulo: (id: string | number, updates: Partial<Modulo>) => Promise<void>
+  deleteModulo: (id: string | number) => Promise<void>
 
   // FUNCIONES para CITAS
   addCita: (cita: Omit<Cita, 'id'>) => Promise<void>
@@ -236,16 +236,23 @@ export function DataProvider({
       try {
         // 2. CONSTRUIR EL OBJETO CORRECTO
         //    Ignoramos cualquier 'profesionalId' que venga en 'modulo'
-        //    y forzamos el 'profesionalId' efectivo (selección o usuario autenticado).
-        const targetProfesionalId = profesionalId ? String(profesionalId) : user.uid
+        //    y forzamos el 'profesionalId' efectivo (selección en UI, prop o usuario autenticado).
+        const targetProfesionalId = activeProfesionalId ? String(activeProfesionalId) : (profesionalId ? String(profesionalId) : user.uid)
 
         const moduloParaGuardar = {
           ...modulo,
           profesionalId: targetProfesionalId,
           createdAt: new Date().toISOString(),
         }
-        
-        console.log('➕ Creando módulo:', moduloParaGuardar)
+
+        // Nota: este log es útil para debugging; conservarlo como warn para reducir ruido en producción
+        console.warn('➕ Creando módulo (profesionalId):', moduloParaGuardar.profesionalId)
+        // DEBUG EXTRA: imprimir las fuentes de verdad que usamos para calcular el profesional
+        try {
+          console.debug('DEBUG addModulo sources => activeProfesionalId:', activeProfesionalId, 'prop profesionalId:', profesionalId, 'auth user.uid:', (user as any)?.uid || (user as any)?.uid === undefined ? (user as any)?.uid : undefined)
+        } catch (e) {
+          console.debug('DEBUG addModulo: no se pudo leer user/ids', e)
+        }
 
         const mod = await import('@/lib/firebaseConfig')
         const { collection, addDoc } = await import('firebase/firestore')
@@ -286,6 +293,12 @@ export function DataProvider({
         lista.forEach((m) => {
           const docRef = doc(colRef) // ID auto-generado
           const targetProfesionalId = activeProfesionalId ? String(activeProfesionalId) : (profesionalId ? String(profesionalId) : user.uid)
+          // DEBUG: imprimir fuentes al crear lote (usar warn para que aparezca en consola)
+          try {
+            console.warn('DEBUG addModulosBatch sources => activeProfesionalId:', activeProfesionalId, 'prop profesionalId:', profesionalId, 'auth user.uid:', (user as any)?.uid || (user as any)?.uid === undefined ? (user as any)?.uid : undefined)
+          } catch (e) {
+            console.warn('DEBUG addModulosBatch: no se pudo leer user/ids', e)
+          }
           batch.set(docRef, {
             ...m,
             profesionalId: targetProfesionalId, // forzar pertenencia al profesional seleccionado o al usuario autenticado
@@ -293,9 +306,9 @@ export function DataProvider({
           })
         })
 
-        console.log(`➕ Creando ${lista.length} módulo(s) en lote...`)
+        console.warn(`➕ Creando ${lista.length} módulo(s) en lote... (usando profesionalId: ${activeProfesionalId ?? profesionalId ?? user.uid})`)
         await batch.commit()
-        console.log('✅ Lote de módulos creado exitosamente')
+        console.warn('✅ Lote de módulos creado exitosamente')
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Error en creación en lote de módulos'
         console.error('❌ Error:', errorMsg)
@@ -303,14 +316,14 @@ export function DataProvider({
         throw err
       }
     },
-    [user]
+    [user, profesionalId, activeProfesionalId]
   )
 
   /**
    * Editar módulo existente
    */
   const updateModulo = useCallback(
-    async (id: number, updates: Partial<Modulo>) => {
+    async (id: string | number, updates: Partial<Modulo>) => {
       try {
         console.log('✏️ Actualizando módulo:', id, updates)
         const mod = await import('@/lib/firebaseConfig')
@@ -334,7 +347,7 @@ export function DataProvider({
   /**
    * Eliminar módulo
    */
-  const deleteModulo = useCallback(async (id: number) => {
+  const deleteModulo = useCallback(async (id: string | number) => {
     try {
       console.log('🗑️ Eliminando módulo:', id)
       const mod = await import('@/lib/firebaseConfig')

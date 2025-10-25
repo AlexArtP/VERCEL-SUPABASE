@@ -222,14 +222,10 @@ export function CalendarView(props: CalendarViewProps) {
   // Conectar con DataContext para propagar la selección global
   const dataContext = useData()
 
-  // Preseleccionar el profesional actual por defecto (evita filtros vacíos)
-  useEffect(() => {
-    if (!selectedProfesionalId && currentUser?.id) {
-      try {
-        setSelectedProfesionalId(String(currentUser.id))
-      } catch (_) {}
-    }
-  }, [currentUser, selectedProfesionalId])
+  // No preseleccionar ningún profesional por defecto.
+  // El profesional debe ser seleccionado por el usuario desde el select.
+  // Si un componente exterior (DataContext) establece `activeProfesionalId`,
+  // éste se sincroniza en el siguiente useEffect.
 
   // Si DataContext tiene activeProfesionalId, sincronizar el selector local con él
   useEffect(() => {
@@ -309,7 +305,8 @@ export function CalendarView(props: CalendarViewProps) {
     if (showCitaModal) selectingRef.current = null
   }, [showCitaModal])
   const [citaAEliminar, setCitaAEliminar] = useState<{ id: number } | null>(null)
-  const [moduloAEliminar, setModuloAEliminar] = useState<number | null>(null)
+  // ahora almacenamos el id del documento de Firestore (string) o null
+  const [moduloAEliminar, setModuloAEliminar] = useState<string | null>(null)
   // States para el modal de crear módulo
   const [selectedPlantillaTemplate, setSelectedPlantillaTemplate] = useState<{ id: string; nombre?: string; tipo: string; duracion: number; observaciones: string; color: string } | null>(null)
   const [showGestionModulosModal, setShowGestionModulosModal] = useState(false)
@@ -382,8 +379,25 @@ export function CalendarView(props: CalendarViewProps) {
     if (!selectedProfesionalId) return modulos
     const mf = modulos.filter((m) => String((m as any).profesionalId) === selectedProfesionalId)
     if (mf.length === 0 && modulos.length > 0) {
-      console.warn('⚠️ Filtro por profesional vacío. Usando todos los módulos. Posible mismatch UID/fuente de datos.')
-      return modulos
+      // DEBUG: imprimir información que ayuda a diagnosticar mismatch entre
+      // selectedProfesionalId y los valores guardados en modulos[].profesionalId
+      try {
+  console.groupCollapsed('⚠️ Filtro por profesional vacío. DEBUG filtro profesional')
+  console.warn('⚠️ Filtro por profesional vacío. No se mostrarán módulos hasta resolver mismatch UID/fuente de datos.')
+        console.log('DEBUG selectedProfesionalId (raw):', selectedProfesionalId)
+        console.log('DEBUG selectedProfesionalId (type):', typeof selectedProfesionalId)
+        // Mostrar hasta 20 módulos para inspección rápida
+        const sample = modulos.slice(0, 20).map((m: any) => ({ id: m.id, profesionalId: m.profesionalId, typeof_profesionalId: typeof m.profesionalId, profesionalNombre: m.profesionalNombre }))
+        console.table(sample)
+        // También buscar coincidencias por conversión laxa (solo para diagnóstico)
+        const fuzzy = modulos.filter((m) => String(m.profesionalId) === String(selectedProfesionalId))
+        console.log('DEBUG coincidencias por String(...) (count):', fuzzy.length)
+        console.groupEnd()
+      } catch (e) {
+        console.warn('DEBUG: error imprimiendo información del filtro:', e)
+      }
+      // Seguridad: si no hay coincidencias claras, no mostramos módulos de otros profesionales
+      return []
     }
     return mf
   }, [modulos, selectedProfesionalId])
@@ -398,10 +412,10 @@ export function CalendarView(props: CalendarViewProps) {
     return cf
   }, [citas, selectedProfesionalId])
   
-  // DEBUG
-  console.log('🔍 selectedProfesionalId:', selectedProfesionalId)
-  console.log('🔍 modulos.length:', modulos.length)
-  console.log('🔍 modulosFiltrados.length:', modulosFiltrados.length)
+  // DEBUG (comentados): logs de depuración que ya no usamos para reducir ruido en la consola
+  // console.log('🔍 selectedProfesionalId:', selectedProfesionalId)
+  // console.log('🔍 modulos.length:', modulos.length)
+  // console.log('🔍 modulosFiltrados.length:', modulosFiltrados.length)
   
   const moduloIdsConCita = new Set(citasFiltradas.map((c) => c.moduloId))
 
@@ -616,14 +630,14 @@ export function CalendarView(props: CalendarViewProps) {
     const api = calendarRef.current?.getApi?.()
     if (!api) return
 
-  console.log('🔄 Actualizando eventos en FullCalendar con', modulos.length, 'módulos')
-  console.log('📋 Events array contiene:', events.length, 'eventos totales')
-    console.log('📅 Vista actual:', api.view.type, 'Rango:', api.view.activeStart, 'a', api.view.activeEnd)
-    
-    // Mostrar detalles de los primeros eventos
-    events.slice(0, 3).forEach((e, i) => {
-      console.log(`  Event ${i}:`, e.title, 'Fecha:', e.start)
-    })
+  // console.log('🔄 Actualizando eventos en FullCalendar con', modulos.length, 'módulos')
+  // console.log('📋 Events array contiene:', events.length, 'eventos totales')
+  // console.log('📅 Vista actual:', api.view.type, 'Rango:', api.view.activeStart, 'a', api.view.activeEnd)
+  
+  // Mostrar detalles de los primeros eventos (comentado para reducir ruido)
+  // events.slice(0, 3).forEach((e, i) => {
+  //   console.log(`  Event ${i}:`, e.title, 'Fecha:', e.start)
+  // })
     
     // En lugar de remover/agregar, actualizar la fuente de eventos directamente
     try {
@@ -633,7 +647,7 @@ export function CalendarView(props: CalendarViewProps) {
       }
       schedule(() => {
         api.setOption('events', events)
-        console.log('✅ Eventos actualizados en FullCalendar')
+  // console.log('✅ Eventos actualizados en FullCalendar')
       })
     } catch (err) {
       console.error('Error actualizando eventos:', err)
@@ -862,13 +876,27 @@ export function CalendarView(props: CalendarViewProps) {
 
   const handleSelectModulo = () => {
     if (contextMenu?.type === "modulo") {
-      const moduloId = Number.parseInt(contextMenu.event.id.replace("modulo-", ""))
-      setSelectedModulos((prev) => prev.includes(moduloId) ? prev.filter((id) => id !== moduloId) : [...prev, moduloId])
+      const raw = String(contextMenu.event.id).replace("modulo-", "")
+      const moduloId = Number.parseInt(raw)
+      // Si el id es numérico, mantener la lógica existente (selectedModulos es number[])
+      if (!Number.isNaN(moduloId)) {
+        setSelectedModulos((prev) => prev.includes(moduloId) ? prev.filter((id) => id !== moduloId) : [...prev, moduloId])
+      } else {
+        // id no numérico (Firestore doc id). No alteramos selectedModulos por ahora.
+        // Podríamos extender selectedModulos a string[] en el futuro si es necesario.
+      }
     }
     setContextMenu(null)
   }
   const handleEditModulo = () => { if (contextMenu?.type === "modulo") { const modulo = contextMenu.event.extendedProps.data as Modulo; setOpenModuloForEdit(true); setSelectedModulo(modulo); } setContextMenu(null) }
-  const handleDeleteModulo = () => { if (contextMenu?.type === "modulo") { const moduloId = Number.parseInt(contextMenu.event.id.replace("modulo-", "")); setModuloAEliminar(moduloId) } setContextMenu(null) }
+  const handleDeleteModulo = () => {
+    if (contextMenu?.type === "modulo") {
+      const raw = String(contextMenu.event.id).replace("modulo-", "")
+      // Intentar parsear por compatibilidad, pero almacenamos siempre el raw string
+      setModuloAEliminar(raw)
+    }
+    setContextMenu(null)
+  }
   const handleAgendarPaciente = () => { if (contextMenu?.type === "modulo") { const modulo = contextMenu.event.extendedProps.data as Modulo; setOpenModuloForEdit(false); setSelectedModulo(modulo); setShowCitaModal(true) } setContextMenu(null) }
   const handleDeleteSelectedModulos = () => { if (selectedModulos.length > 0) { setConfirmEliminarSeleccionados(true) } }
 
@@ -937,11 +965,28 @@ export function CalendarView(props: CalendarViewProps) {
       <div className="mt-4 w-full flex flex-col items-start">
         <label htmlFor="profesional-select" className="mb-1 text-sm font-semibold text-gray-700">Profesionales registrados</label>
   <select id="profesional-select" className="w-full px-4 py-3 rounded-xl border-2 border-blue-400 bg-gradient-to-r from-blue-100 via-white to-blue-100 text-blue-900 font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-blue-600 hover:shadow-xl" value={selectedProfesionalId ?? ""} onChange={(e) => { const val = e.target.value; setSelectedProfesionalId(val || null); setSelectedModulos([]); setSelectedModulo(null); setContextMenu(null); if (dataContext?.setActiveProfesional) dataContext.setActiveProfesional(val || null); }}>
-          <option value="">Selecciona un profesional...</option>
+    <option value="">Seleccione un profesional...</option>
           {profesionalesActuales.map((u: any) => (
             <option key={u.id} value={String(u.id)} className="py-2">{u.nombre} {u.apellidoPaterno ? u.apellidoPaterno : ""} {u.apellidoMaterno ? u.apellidoMaterno : ""} - {u.profesion}{u.cargo ? ` / ${u.cargo}` : ""}</option>
           ))}
         </select>
+        <div className="mt-2">
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+            onClick={() => {
+              setSelectedProfesionalId(null)
+              setSelectedModulos([])
+              setSelectedModulo(null)
+              setContextMenu(null)
+              if (dataContext?.setActiveProfesional) dataContext.setActiveProfesional(null)
+            }}
+            disabled={selectedProfesionalId === null}
+            aria-label="Limpiar profesional seleccionado"
+          >
+            <X className="w-4 h-4" /> Limpiar selección
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 p-6" style={{ overflow: 'visible', position: 'relative' }}>
@@ -949,7 +994,7 @@ export function CalendarView(props: CalendarViewProps) {
         {selectedProfesionalId === null ? (
           <div className="flex flex-col items-center justify-center py-16 text-center text-gray-600">
             <div className="text-5xl mb-4">🗓️</div>
-            <h3 className="text-xl font-semibold mb-2">Selecciona un profesional para ver su agenda</h3>
+            <h3 className="text-xl font-semibold mb-2">Seleccione un profesional para visualizar su agenda</h3>
             <p className="max-w-md">Usa la lista desplegable de arriba para elegir un profesional. Una vez seleccionado, cargaremos sus módulos y citas en el calendario.</p>
           </div>
         ) : (
@@ -1508,7 +1553,7 @@ export function CalendarView(props: CalendarViewProps) {
           setCitaAEliminar(null);
         }}
       />
-      <ConfirmModal open={moduloAEliminar != null} title="Eliminar módulo" message="¿Seguro que deseas eliminar este módulo?" confirmText="Eliminar" cancelText="Cancelar" onCancel={() => setModuloAEliminar(null)} onConfirm={() => { if (moduloAEliminar != null) onModuloDelete([moduloAEliminar]); setModuloAEliminar(null) }} />
+  <ConfirmModal open={moduloAEliminar != null} title="Eliminar módulo" message="¿Seguro que deseas eliminar este módulo?" confirmText="Eliminar" cancelText="Cancelar" onCancel={() => setModuloAEliminar(null)} onConfirm={() => { if (moduloAEliminar != null) onModuloDelete([moduloAEliminar as any]); setModuloAEliminar(null) }} />
       <ConfirmModal open={confirmEliminarSeleccionados} title="Eliminar módulos" message={`¿Estás seguro de eliminar ${selectedModulos.length} módulos?`} confirmText="Eliminar" cancelText="Cancelar" onCancel={() => setConfirmEliminarSeleccionados(false)} onConfirm={() => { onModuloDelete(selectedModulos); setSelectedModulos([]); setConfirmEliminarSeleccionados(false) }} />
       <ConfirmModal open={!!confirmEliminarSemana?.open} title="Eliminar módulos de la semana" message={`¿Eliminar ${confirmEliminarSemana?.ids.length ?? 0} módulos de la semana?`} confirmText="Eliminar" cancelText="Cancelar" onCancel={() => setConfirmEliminarSemana(null)} onConfirm={() => { if (confirmEliminarSemana) onModuloDelete(confirmEliminarSemana.ids); setConfirmEliminarSemana(null) }} />
 
@@ -1852,7 +1897,7 @@ export function CalendarView(props: CalendarViewProps) {
             // Eliminar plantilla usando Firebase
             try {
               onPlantillaDelete(plantillaId)
-              console.log("✅ Plantilla eliminada de Firebase:", plantillaId)
+              // console.log("✅ Plantilla eliminada de Firebase:", plantillaId)
             } catch (err) {
               console.error("❌ Error al eliminar plantilla:", err)
             }
@@ -1906,7 +1951,7 @@ export function CalendarView(props: CalendarViewProps) {
                   
                   try {
                     onPlantillaUpdate(editingPlantilla.id, updates)
-                    console.log("✅ Plantilla actualizada en Firebase")
+                    // console.log("✅ Plantilla actualizada en Firebase")
                   } catch (err) {
                     console.error("❌ Error al actualizar plantilla:", err)
                   }
@@ -1923,7 +1968,7 @@ export function CalendarView(props: CalendarViewProps) {
                   
                   try {
                     onPlantillaCreate(newPlantilla)
-                    console.log("✅ Nueva plantilla creada en Firebase")
+                    // console.log("✅ Nueva plantilla creada en Firebase")
                   } catch (err) {
                     console.error("❌ Error al crear plantilla:", err)
                   }

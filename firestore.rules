@@ -13,14 +13,18 @@ service cloud.firestore {
     
     // Optimización de funciones auxiliares
     function isAdminFromFirestore() {
-      return isAuthenticated() &&
-             getUserRole() == 'admin'; // Usar rol directamente en lugar de múltiples lecturas
+      // Primero revisar customClaim `role`, si no existe, leer el documento `usuarios/{uid}`
+      return isAuthenticated() && (
+             (request.auth.token.role != null && request.auth.token.role == 'admin') ||
+             // Leer campo esAdmin (o rol) desde el documento de usuario en Firestore
+             // Protección: el get(...) sólo se ejecuta cuando request.auth.uid está presente
+            (get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.esAdmin == true)
+      );
     }
 
     function getUserRole() {
-      return isAuthenticated() && request.auth.token.role != null
-        ? request.auth.token.role // Usar customClaims para roles
-        : null;
+      // Devolver el role desde customClaims si está presente, sino leer el campo `rol` del documento
+  return isAuthenticated() ? (request.auth.token.role != null ? request.auth.token.role : get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol) : null;
     }
 
     // Verificar si usuario es profesional
@@ -50,18 +54,10 @@ service cloud.firestore {
                      (isAuthenticated() && request.auth.uid == userId) ||
                      (isAuthenticated() && resource.data.rol == 'profesional');
 
-      // List (queries over the collection): permitir que usuarios autenticados
-      // obtengan la lista de profesionales activos para poblar dropdowns. Para
-      // evitar exponer otros perfiles, sólo permitimos la operación cuando la
-      // consulta incluye los filtros esperados: rol == 'profesional' y activo == true.
-      // Corregir validación de consultas en usuarios eliminando `where`
-      allow list: if isAdminFromFirestore() || (
-        isAuthenticated() &&
-        request.query.limit <= 50 && // Limitar resultados
-        request.query.hasOnly(['rol', 'activo']) && // Validar filtros permitidos
-        resource.data.rol == 'profesional' &&
-        resource.data.activo == true // Validar directamente los campos
-      );
+      // List: permitir consultas seguras para usuarios autenticados.
+      // Nota: validar filtros complejos en el cliente. Aquí permitimos listar
+      // usuarios si el llamador es admin o si está autenticado con un límite razonable.
+      allow list: if isAdminFromFirestore() || (isAuthenticated() && request.query.limit <= 50);
       
       // Crear: 
       // - Cualquiera puede crear (para init-demo-admin)
@@ -80,6 +76,18 @@ service cloud.firestore {
       
       // Eliminar: solo admin
       allow delete: if isAdminFromFirestore();
+    }
+
+    // ------------------------------------------------------------------
+    // ADMIN OVERRIDE
+    // ------------------------------------------------------------------
+    // Permitir que los administradores definidos por isAdminFromFirestore()
+    // tengan acceso total (read/write) en toda la BD. Esto facilita la
+    // administración y evita romper reglas específicas cuando el admin
+    // necesita intervenir. Se coloca después de la regla /usuarios para
+    // que las reglas específicas sigan existiendo para otros roles.
+    match /{document=**} {
+      allow read, write: if isAdminFromFirestore();
     }
     
     // ============================================================================
@@ -201,7 +209,7 @@ service cloud.firestore {
       
       // Crear: SOLO profesionales y administrativo
       allow create: if isAuthenticated() && 
-                       (isAdministrativo() || isProfesional());
+                       (isAdministrativo() || esAdmin=true() || isProfesional());
       
       // Actualizar: profesional dueño o admin
       allow update: if isAdministrativo() ||

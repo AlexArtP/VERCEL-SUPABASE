@@ -13,6 +13,7 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore'
 
 export interface Profesional {
   id: string
+  uid?: string | null
   email: string
   nombre: string
   apellidoPaterno?: string
@@ -72,6 +73,7 @@ export function useFirestoreProfesionales(): UseFirestoreProfesionalesReturn {
             const data = doc.data()
             profesionalesList.push({
               id: doc.id,
+              uid: data.uid || null,
               email: data.email || '',
               nombre: data.nombre || '',
               apellidoPaterno: data.apellidoPaterno,
