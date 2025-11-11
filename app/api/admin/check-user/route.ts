@@ -1,15 +1,16 @@
 /**
  * ARCHIVO: app/api/admin/check-user/route.ts
- * PROPÓSITO: Verificar el estado de un usuario en Firebase Auth y Firestore
+ * PROPÓSITO: Verificar el estado de un usuario en Supabase Auth y profiles
+ * 
+ * MIGRADO: De Firebase Admin SDK a Supabase Admin API
  * 
  * POST /api/admin/check-user
  * Body: { email: string }
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { initializeFirebaseAdmin } from '@/lib/firebaseAdmin'
-import { getAuth } from 'firebase-admin/auth'
-import { getFirestore } from 'firebase-admin/firestore'
+import { getUserByEmail, getUserProfile } from '@/lib/supabaseAdmin'
+import { createClient } from '@supabase/supabase-js'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,46 +23,52 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const admin = initializeFirebaseAdmin()
-    const auth = getAuth(admin.app())
-    const db = getFirestore(admin.app())
-
     console.log(`\n🔍 CHECK USER - Email: ${email}`)
     console.log('='.repeat(60))
 
-    // 1. Verificar en Firebase Auth
+    // 1. Verificar en Supabase Auth
     let authUser: any = null
     try {
-      authUser = await auth.getUserByEmail(email)
-      console.log(`✅ Usuario encontrado en Firebase Auth`)
-      console.log(`   UID: ${authUser.uid}`)
+      authUser = await getUserByEmail(email)
+      
+      if (!authUser) {
+        console.log(`❌ Usuario NO encontrado en Supabase Auth`)
+        return NextResponse.json({
+          error: `Usuario ${email} no encontrado en Supabase Auth`,
+          authExists: false
+        }, { status: 404 })
+      }
+
+      console.log(`✅ Usuario encontrado en Supabase Auth`)
+      console.log(`   UUID: ${authUser.id}`)
       console.log(`   Email: ${authUser.email}`)
-      console.log(`   Email Verificado: ${authUser.emailVerified}`)
-      console.log(`   Deshabilitado: ${authUser.disabled}`)
-      console.log(`   Creado: ${new Date(authUser.metadata.creationTime).toLocaleString()}`)
+      console.log(`   Email Verificado: ${authUser.email_confirmed_at ? 'Sí' : 'No'}`)
+      console.log(`   Deshabilitado: ${authUser.deleted_at ? 'Sí' : 'No'}`)
+      console.log(`   Creado: ${new Date(authUser.created_at).toLocaleString()}`)
     } catch (err: any) {
-      console.log(`❌ Usuario NO encontrado en Firebase Auth`)
-      console.log(`   Error: ${err.message}`)
+      console.log(`❌ Error verificando usuario en Auth:`, err.message)
       return NextResponse.json({
-        error: `Usuario ${email} no encontrado en Firebase Auth`,
+        error: `Error verificando usuario: ${err.message}`,
         authExists: false
-      }, { status: 404 })
+      }, { status: 500 })
     }
 
-    // 2. Verificar en Firestore
-    const userDoc = await db.collection('usuarios').doc(authUser.uid).get()
-    
-    let firestoreData: any = null
-    if (userDoc.exists) {
-      firestoreData = userDoc.data()
-      console.log(`✅ Usuario encontrado en Firestore`)
-      console.log(`   Email: ${firestoreData.email}`)
-      console.log(`   Nombre: ${firestoreData.nombre}`)
-      console.log(`   esAdmin: ${firestoreData.esAdmin}`)
-      console.log(`   Activo: ${firestoreData.activo}`)
-      console.log(`   Rol: ${firestoreData.rol}`)
-    } else {
-      console.log(`❌ Usuario NO encontrado en Firestore`)
+    // 2. Verificar en profiles table
+    let profileData: any = null
+    try {
+      profileData = await getUserProfile(authUser.id)
+      
+      if (profileData) {
+        console.log(`✅ Usuario encontrado en profiles`)
+        console.log(`   Email: ${profileData.email}`)
+        console.log(`   Nombre: ${profileData.full_name}`)
+        console.log(`   esAdmin: ${profileData.is_admin}`)
+        console.log(`   Rol: ${profileData.role}`)
+      } else {
+        console.log(`⚠️ Usuario NO encontrado en profiles (uuid: ${authUser.id})`)
+      }
+    } catch (err: any) {
+      console.log(`⚠️ Error verificando perfil:`, err.message)
     }
 
     console.log('='.repeat(60))
@@ -69,24 +76,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       auth: {
-        uid: authUser.uid,
+        uuid: authUser.id,
         email: authUser.email,
-        emailVerified: authUser.emailVerified,
-        disabled: authUser.disabled,
-        createdAt: new Date(authUser.metadata.creationTime).toISOString()
+        emailVerified: !!authUser.email_confirmed_at,
+        disabled: !!authUser.deleted_at,
+        createdAt: new Date(authUser.created_at).toISOString()
       },
-      firestore: firestoreData ? {
-        email: firestoreData.email,
-        nombre: firestoreData.nombre,
-        esAdmin: firestoreData.esAdmin,
-        activo: firestoreData.activo,
-        rol: firestoreData.rol,
-        profesion: firestoreData.profesion
+      profile: profileData ? {
+        email: profileData.email,
+        full_name: profileData.full_name,
+        is_admin: profileData.is_admin,
+        role: profileData.role,
+        profession: profileData.profession
       } : null,
-      firestoreExists: userDoc.exists,
+      profileExists: !!profileData,
       sync: {
-        bothExist: !!firestoreData,
-        adminStatus: firestoreData?.esAdmin || false
+        bothExist: !!profileData,
+        adminStatus: profileData?.is_admin || false
       }
     })
 

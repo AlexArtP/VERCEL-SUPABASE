@@ -1,0 +1,39 @@
+
+> my-v0-project@0.1.0 dev
+> next dev
+
+   Ôû▓ Next.js 15.5.5
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.88:3000
+   - Environments: .env.local
+
+ Ô£ô Starting...
+ Ô£ô Ready in 1520ms
+ Ôùï Compiling /api/auth/register ...
+ Ô£ô Compiled /api/auth/register in 1358ms (431 modules)
+
+­ƒôØ REGISTER REQUEST - Email: test_2077600468@example.com
+============================================================
+­ƒöÉ Creando usuario en Supabase Auth...
+Ô£à Usuario creado en Auth - UID: dff78c06-dd5a-4762-88ec-9b2cddb47ff5
+­ƒôä Creando perfil en la tabla profiles...
+ÔÜá´©Å Error creando perfil: Could not find the table 'public.profiles' in the schema cache
+ POST /api/auth/register 201 in 2347ms
+ Ô£ô Compiled /api/auth/login in 111ms (433 modules)
+
+­ƒöÉ LOGIN REQUEST - Email: test_2077600468@example.com
+============================================================
+[login] Unexpected error: Error: Missing Supabase environment variables
+    at createSupabaseClient (app\api\auth\login\route.ts:21:11)
+    at POST (app\api\auth\login\route.ts:44:22)
+  19 |   
+  20 |   if (!url || !key) {
+> 21 |     throw new Error('Missing Supabase environment variables')
+     |           ^
+  22 |   }
+  23 |   
+  24 |   return createClient(url, key, {
+ POST /api/auth/login 500 in 256ms
+ Ô£ô Compiled in 101ms (238 modules)
+   Reload env: .env.local
+ Ô£ô Compiled in 123ms (433 modules)

@@ -5,7 +5,7 @@ export const DEMO_DATA = {
       nombre: "Dr. Juan",
       apellidos: "Pérez González",
       run: "12.345.678-9",
-      profesion: "Médico General",
+      profesion: "Médico",
       telefono: "+56 9 1234 5678",
       email: "juan.perez@clinica.cl",
       cargo:
@@ -20,6 +20,7 @@ export const DEMO_DATA = {
       rol: "profesional",
       esAdmin: true,
       activo: true,
+      estado: "aprobado", // Demo users are pre-approved
       password: "demo123",
     },
     {
@@ -27,19 +28,20 @@ export const DEMO_DATA = {
       nombre: "Dra. María",
       apellidos: "Silva Rojas",
       run: "13.456.789-0",
-      profesion: "Cardióloga",
+      profesion: "Psicólogo",
       telefono: "+56 9 2345 6789",
       email: "maria.silva@clinica.cl",
-      cargo: "Especialista en Cardiología con enfoque en enfermedades cardiovasculares y prevención.",
-      description: "Cardióloga dedicada a la atención integral del paciente adulto, con especial interés en rehabilitación cardiaca.",
+      cargo: "Psicóloga especialista en terapia cognitivo-conductual y manejo de estrés.",
+      description: "Psicóloga dedicada a la atención integral del paciente adulto, con especial interés en salud mental.",
       avatar: "",
-      specialties: ["Cardiología", "Rehabilitación Cardiaca"],
+      specialties: ["Psicología Clínica", "Terapia Cognitivo-Conductual"],
       workingHours: { start: "09:00", end: "18:00" },
       preferences: { theme: "light", primaryColor: "#10B981", language: "es" },
       isPublic: true,
       rol: "profesional",
       esAdmin: false,
       activo: true,
+      estado: "aprobado", // Demo users are pre-approved
       password: "demo123",
     },
     {
@@ -54,6 +56,7 @@ export const DEMO_DATA = {
       rol: "administrativo",
       esAdmin: true,
       activo: true,
+      estado: "aprobado", // Demo users are pre-approved
       password: "demo123",
     },
     {
@@ -61,13 +64,14 @@ export const DEMO_DATA = {
       nombre: "Dra. Ana",
       apellidos: "Morales Díaz",
       run: "15.678.901-2",
-      profesion: "Pediatra",
+      profesion: "Psiquiatra",
       telefono: "+56 9 4567 8901",
       email: "ana.morales@clinica.cl",
-      cargo: "Especialista en Pediatría con experiencia en atención infantil y adolescente.",
+      cargo: "Especialista en Psiquiatría con experiencia en salud mental infantil y adolescente.",
       rol: "profesional",
       esAdmin: false,
-      activo: false,
+      activo: true,
+      estado: "aprobado", // Demo users are pre-approved
       password: "demo123",
     },
     {
@@ -88,6 +92,28 @@ export const DEMO_DATA = {
       rol: "administrativo",
       esAdmin: false,
       activo: true,
+      estado: "aprobado", // Demo users are pre-approved
+      password: "demo123",
+    },
+    {
+      id: 6,
+      nombre: "Dra. Rosa",
+      apellidos: "López García",
+      run: "17.890.123-4",
+      profesion: "Asistente Social",
+      telefono: "+56 9 7890 1234",
+      email: "rosa.lopez@clinica.cl",
+      cargo: "Especialista en Trabajo Social y apoyo psicosocial a pacientes.",
+      description: "Profesional en Trabajo Social dedicada a la atención integral del paciente y su familia.",
+      avatar: "",
+      specialties: ["Trabajo Social", "Apoyo Psicosocial"],
+      workingHours: { start: "08:30", end: "17:00" },
+      preferences: { theme: "light", primaryColor: "#8B5CF6", language: "es" },
+      isPublic: true,
+      rol: "profesional",
+      esAdmin: false,
+      activo: true,
+      estado: "aprobado", // Demo users are pre-approved
       password: "demo123",
     },
   ],
@@ -124,7 +150,8 @@ export const DEMO_DATA = {
     {
       id: 1,
       pacienteId: 1,
-      pacienteNombre: "Pedro Sánchez",
+      pacienteNombre: "Pedro",
+      pacienteApellidos: "Sánchez López",
       profesionalId: 1,
       profesionalNombre: "Dr. Juan Pérez",
       fecha: new Date().toISOString().split("T")[0],
@@ -135,7 +162,8 @@ export const DEMO_DATA = {
     {
       id: 2,
       pacienteId: 2,
-      pacienteNombre: "Laura Martínez",
+      pacienteNombre: "Laura",
+      pacienteApellidos: "Martínez Rodríguez",
       profesionalId: 2,
       profesionalNombre: "Dra. María Silva",
       fecha: new Date().toISOString().split("T")[0],
@@ -146,7 +174,8 @@ export const DEMO_DATA = {
     {
       id: 3,
       pacienteId: 3,
-      pacienteNombre: "Roberto Gutiérrez",
+      pacienteNombre: "Roberto",
+      pacienteApellidos: "Gutiérrez Torres",
       profesionalId: 1,
       profesionalNombre: "Dr. Juan Pérez",
       fecha: new Date().toISOString().split("T")[0],
@@ -157,7 +186,8 @@ export const DEMO_DATA = {
     {
       id: 4,
       pacienteId: 1,
-      pacienteNombre: "Pedro Sánchez",
+      pacienteNombre: "Pedro",
+      pacienteApellidos: "Sánchez López",
       profesionalId: 4,
       profesionalNombre: "Dra. Ana Morales",
       fecha: new Date(Date.now() + 86400000).toISOString().split("T")[0],
@@ -173,7 +203,7 @@ export const DEMO_DATA = {
       profesionalId: 1,
       tipo: "Consulta General",
       duracion: 45,
-      estamento: "Médico General",
+      profesion: "Médico general",
       color: "#3b82f6",
       observaciones: "Consulta médica general sin especialidad",
     },
@@ -182,7 +212,7 @@ export const DEMO_DATA = {
       profesionalId: 2,
       tipo: "Cardiología",
       duracion: 60,
-      estamento: "Cardiología",
+      profesion: "Médico general",
       color: "#10b981",
       observaciones: "Evaluación cardiológica especializada",
     },
@@ -191,7 +221,7 @@ export const DEMO_DATA = {
       profesionalId: 1,
       tipo: "Control",
       duracion: 30,
-      estamento: "Médico General",
+      profesion: "Médico general",
       color: "#f59e0b",
       observaciones: "Control de seguimiento de paciente",
     },
@@ -200,7 +230,7 @@ export const DEMO_DATA = {
       profesionalId: 1,
       tipo: "Ingreso",
       duracion: 120,
-      estamento: "Admisión",
+      profesion: "Médico general",
       color: "#ef4444",
       observaciones: "Proceso de ingreso hospitalario",
     },
@@ -219,7 +249,7 @@ export const DEMO_DATA = {
       tipo: "Consulta General",
       disponible: true,
       color: "#3b82f6",
-      estamento: "Médico General",
+      profesion: "Médico general",
       observaciones: "Consulta médica general sin especialidad",
     },
     {
@@ -234,7 +264,7 @@ export const DEMO_DATA = {
       tipo: "Consulta General",
       disponible: true,
       color: "#3b82f6",
-      estamento: "Médico General",
+      profesion: "Médico general",
       observaciones: "Consulta médica general sin especialidad",
     },
     {
@@ -249,7 +279,7 @@ export const DEMO_DATA = {
       tipo: "Cardiología",
       disponible: false,
       color: "#10b981",
-      estamento: "Cardiología",
+      profesion: "Médico general",
       observaciones: "Evaluación cardiológica especializada",
     },
     {
@@ -264,7 +294,7 @@ export const DEMO_DATA = {
       tipo: "Control",
       disponible: false,
       color: "#f59e0b",
-      estamento: "Médico General",
+      profesion: "Médico general",
       observaciones: "Control de seguimiento de paciente",
     },
     {
@@ -279,7 +309,7 @@ export const DEMO_DATA = {
       tipo: "Control",
       disponible: true,
       color: "#f59e0b",
-      estamento: "Médico General",
+      profesion: "Médico general",
       observaciones: "Control de seguimiento de paciente",
     },
   ],
@@ -320,6 +350,7 @@ export interface Cita {
   id: number
   pacienteId: number
   pacienteNombre: string
+  pacienteApellidos?: string
   profesionalId: number
   profesionalNombre: string
   fecha: string
@@ -344,16 +375,16 @@ export interface Modulo {
   tipo: string
   disponible: boolean
   color: string
-  estamento?: string
+  profesion?: string
   observaciones?: string
 }
 
 export interface PlantillaModulo {
   id: number
-  profesionalId: number
   tipo: string
   duracion: number
-  estamento: string
+  profesion: string
   color: string
   observaciones: string
+  profesionalId: number
 }

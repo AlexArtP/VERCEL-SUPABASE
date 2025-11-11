@@ -1,249 +1,176 @@
 /**
  * ARCHIVO: app/api/auth/register/route.ts
- * PROPÓSITO: Endpoint para registrar nuevos usuarios
+ * PROPÓSITO: Endpoint para registro usando Supabase Auth
  * 
  * POST /api/auth/register
- * Body: {
- *   nombre, apellidoPaterno, apellidoMaterno, run, profesion,
- *   sobreTi, cargoActual, email, telefono, password, confirmPassword
+ * Body: { 
+ *   email: string, 
+ *   password: string,
+ *   nombre?: string,
+ *   apellido_paterno?: string,
+ *   apellido_materno?: string,
+ *   run?: string,
+ *   profesion?: string
  * }
  * 
- * Acciones:
- * 1. Valida datos enviados
- * 2. Guarda registro de solicitud en Firestore (colección: solicitudes)
- * 3. Retorna respuesta con estado
+ * Este endpoint crea un nuevo usuario en Supabase Auth y su perfil correspondiente
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { initializeApp, getApps } from 'firebase/app'
-import { getFirestore, collection, query, where, getDocs, addDoc, Timestamp } from 'firebase/firestore'
-import * as crypto from 'crypto'
+import { createClient } from '@supabase/supabase-js'
 
-// Inicializar Firebase (Web SDK para servidor)
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-}
-
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
-const db = getFirestore(app)
-
-/**
- * Formatea un RUN al formato estándar: xxxxxxxx-x
- * @param run - RUN a formatear (puede venir sin guion o con espacios)
- * @returns RUN formateado o null si es inválido
- */
-function formatearRun(run: string): string | null {
-  if (!run) return null
-
-  // Remover espacios y guiones
-  const runLimpio = run.replace(/[\s\-\.]/g, '').toUpperCase()
-
-  // Validar que sea 8 dígitos + 1 carácter
-  if (!/^\d{8}[0-9K]$/.test(runLimpio)) {
-    return null
+function createServiceRoleClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (!url || !serviceRoleKey) {
+    throw new Error('Missing Supabase service role key')
   }
-
-  // Formatear como xxxxxxxx-x
-  return `${runLimpio.slice(0, 8)}-${runLimpio.slice(8, 9)}`
-}
-
-/**
- * Valida que un RUN esté en formato correcto
- * @param run - RUN a validar
- * @returns true si es válido
- */
-function validarRun(run: string): boolean {
-  // Debe ser xxxxxxxx-x
-  return /^\d{8}-[0-9K]$/.test(run)
-}
-
-/**
- * Hashea una contraseña usando SHA-256 (solo para almacenamiento)
- * En producción, usar bcrypt o argon2
- * @param password - Contraseña a hashear
- * @returns Contraseña hasheada en hexadecimal
- */
-function hashPassword(password: string): string {
-  return crypto
-    .createHash('sha256')
-    .update(password)
-    .digest('hex')
+  
+  return createClient(url, serviceRoleKey, {
+    auth: { persistSession: false }
+  })
 }
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📥 POST /api/auth/register - Iniciando...')
     const body = await request.json()
-    console.log('📦 Body recibido:', { ...body, password: '***' })
-
     const {
-      nombre,
-      apellidoPaterno,
-      apellidoMaterno,
-      run,
-      profesion,
-      sobreTi,
-      cargoActual,
       email,
-      telefono,
       password,
-      confirmPassword,
+      nombre = '',
+      apellido_paterno = '',
+      apellido_materno = '',
+      run = '',
+      profesion = ''
     } = body
 
-    // Validaciones básicas
-    if (!nombre || !email || !password) {
-      console.warn('❌ Campos faltantes:', { nombre: !!nombre, email: !!email, password: !!password })
+    if (!email || !password) {
+      console.error('[register] Missing email or password')
       return NextResponse.json(
-        { success: false, message: 'Faltan campos requeridos: nombre, email, password' },
+        { error: 'Email y contraseña requeridos' },
         { status: 400 }
       )
     }
 
-    if (password !== confirmPassword) {
-      console.warn('❌ Contraseñas no coinciden:', { passwordLen: password?.length, confirmLen: confirmPassword?.length })
+    // Validación básica de email
+    if (!email.includes('@')) {
       return NextResponse.json(
-        { success: false, message: 'Las contraseñas no coinciden' },
+        { error: 'Email inválido' },
         { status: 400 }
       )
     }
 
-    if (password.length < 8) {
-      console.warn('❌ Contraseña muy corta')
+    // Validación básica de contraseña (mínimo 6 caracteres)
+    if (password.length < 6) {
       return NextResponse.json(
-        { success: false, message: 'La contraseña debe tener al menos 8 caracteres' },
+        { error: 'La contraseña debe tener al menos 6 caracteres' },
         { status: 400 }
       )
     }
 
-    // Validación de email formato
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      console.warn('❌ Email inválido:', email)
-      return NextResponse.json(
-        { success: false, message: 'Email inválido' },
-        { status: 400 }
-      )
-    }
+    console.log(`\n📝 REGISTER REQUEST - Email: ${email}`)
+    console.log('='.repeat(60))
 
-    // Validación y formateo de RUN
-    console.log('🔍 Validando RUN:', run)
-    const runFormateado = formatearRun(run)
-    if (!runFormateado) {
-      console.warn('❌ RUN inválido:', run)
-      return NextResponse.json(
-        { success: false, message: 'RUN inválido. Debe ser en formato xxxxxxxx-x (ej: 12345678-9)' },
-        { status: 400 }
-      )
-    }
-    console.log('✅ RUN formateado:', runFormateado)
+    // Usar service-role para crear usuario (mejor control)
+    const serviceSupabase = createServiceRoleClient()
 
-    // Verificar si el email ya existe en solicitudes
-    console.log('🔍 Verificando si email existe en Firebase...')
-    try {
-      const q = query(collection(db, 'solicitudes'), where('email', '==', email))
-      const snapshot = await getDocs(q)
+    // Crear usuario en Supabase Auth
+    console.log('🔐 Creando usuario en Supabase Auth...')
+    const { data: authData, error: authError } = await serviceSupabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true // Auto-confirmar email
+    })
 
-      if (!snapshot.empty) {
-        console.warn('❌ Email ya tiene solicitud:', email)
+    if (authError) {
+      console.error(`❌ Error creando usuario en Auth: ${authError.message}`)
+      
+      // Detectar errores comunes
+      if (authError.message.includes('already exists')) {
         return NextResponse.json(
-          { success: false, message: 'Este email ya tiene una solicitud pendiente' },
-          { status: 400 }
+          { error: 'Este email ya está registrado' },
+          { status: 409 }
         )
       }
-    } catch (fbError: any) {
-      console.warn('⚠️ No se pudo verificar email en Firebase:', fbError.message)
-      // Continuar de todas formas
-    }
-
-    // Verificar si el RUN ya existe en solicitudes
-    console.log('🔍 Verificando si RUN ya existe en solicitudes...')
-    try {
-      const qRun = query(collection(db, 'solicitudes'), where('run', '==', runFormateado))
-      const snapshotRun = await getDocs(qRun)
-
-      if (!snapshotRun.empty) {
-        console.warn('❌ RUN ya tiene solicitud:', runFormateado)
-        return NextResponse.json(
-          { success: false, message: 'Este RUN ya tiene una solicitud registrada. Si crees que es un error, contacta al administrador.' },
-          { status: 400 }
-        )
-      }
-    } catch (fbError: any) {
-      console.warn('⚠️ No se pudo verificar RUN en solicitudes:', fbError.message)
-      // Continuar de todas formas
-    }
-
-    // Verificar si el RUN ya existe en usuarios (aprobados)
-    console.log('🔍 Verificando si RUN ya existe en usuarios aprobados...')
-    try {
-      const qRunUsuarios = query(collection(db, 'usuarios'), where('run', '==', runFormateado))
-      const snapshotRunUsuarios = await getDocs(qRunUsuarios)
-
-      if (!snapshotRunUsuarios.empty) {
-        console.warn('❌ RUN ya existe como usuario aprobado:', runFormateado)
-        return NextResponse.json(
-          { success: false, message: 'Este RUN ya está registrado en el sistema como usuario activo.' },
-          { status: 400 }
-        )
-      }
-    } catch (fbError: any) {
-      console.warn('⚠️ No se pudo verificar RUN en usuarios:', fbError.message)
-      // Continuar de todas formas
-    }
-
-    // Datos de la solicitud - Usar tipos compatibles con Firestore
-    const solicitudData = {
-      nombre: nombre || '',
-      apellidoPaterno: apellidoPaterno || '',
-      apellidoMaterno: apellidoMaterno || '',
-      run: runFormateado,  // Usar RUN formateado
-      profesion: profesion || '',
-      sobreTi: sobreTi || '',
-      cargoActual: cargoActual || '',
-      email: email || '',
-      telefono: telefono || '',
-      // 🔐 IMPORTANTE: Guardar CONTRASEÑA DESCIFRADA (no hasheada)
-      // Esto es necesario para poder crear el usuario en Firebase Auth al aprobar
-      // Firestore está protegido con reglas de seguridad, solo admins pueden leer esto
-      password: password,
-      estado: 'pendiente',
-      esAdmin: false,
-      fechaSolicitud: Timestamp.now(),
-      fechaAprobacion: null,
-      aprobadoPor: null,
-    }
-
-    // Guardar en Firestore
-    console.log('💾 Guardando solicitud en Firestore...')
-    try {
-      const docRef = await addDoc(collection(db, 'solicitudes'), solicitudData)
-      console.log('✅ Solicitud guardada exitosamente:', docRef.id)
-
+      
       return NextResponse.json(
-        {
-          success: true,
-          message: 'Solicitud registrada exitosamente. Un administrador revisará tu solicitud pronto.',
-          solicitudId: docRef.id,
+        { error: authError.message || 'Error al crear usuario' },
+        { status: 400 }
+      )
+    }
+
+    const userid = authData.user.id
+    console.log(`✅ Usuario creado en Auth - UID: ${userid}`)
+
+    // Insertar en la tabla usuarios con las columnas correctas (minúsculas)
+    console.log('📄 Insertando usuario en la tabla usuarios...')
+    
+    // Determinar rol: si se proporciona profesión, es 'profesional'; sino, 'administrativo'
+    const rol = profesion ? 'profesional' : 'administrativo'
+    const isProfesional = !!profesion
+    
+    const { data: usuarioData, error: usuarioError } = await serviceSupabase
+      .from('usuarios')
+      .insert({
+        userid,
+        email,
+        nombre,
+        rol,
+        esadmin: false,
+        telefono: body.telefono || null,
+        direccion: body.direccion || null,
+        fotoperfil: null,
+        fechacreacion: new Date().toISOString(),
+        profesional: isProfesional,
+        profesion: profesion || body.estamento || null,
+        run: run || null
+      })
+      .select()
+      .single()
+
+    if (usuarioError) {
+      console.error(`⚠️ Error insertando usuario: ${usuarioError.message}`)
+      // No hacer rollback; el usuario existe en Auth y puede actualizarse después
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Usuario creado en Auth pero falta actualizar tabla usuarios',
+        user: {
+          userid,
           email,
-        },
-        { status: 201 }
-      )
-    } catch (fbSaveError: any) {
-      console.error('❌ Error guardando en Firebase:', fbSaveError.message)
-      return NextResponse.json(
-        { success: false, message: 'No se pudo guardar la solicitud. Por favor intenta más tarde.' },
-        { status: 500 }
-      )
+          nombre,
+          rol,
+          profesional: isProfesional,
+          esadmin: false
+        }
+      }, { status: 201 })
     }
+
+    console.log(`✅ Usuario insertado exitosamente en usuarios`)
+    console.log(`   Email: ${usuarioData.email}`)
+    console.log(`   Nombre: ${usuarioData.nombre}`)
+    console.log(`   Rol: ${usuarioData.rol}`)
+    console.log(`   Profesional: ${usuarioData.profesional}`)
+    console.log('='.repeat(60))
+    console.log(`✅ Registro completado exitosamente\n`)
+
+    return NextResponse.json({
+      success: true,
+      user: {
+        userid: usuarioData.userid,
+        email: usuarioData.email,
+        nombre: usuarioData.nombre,
+        rol: usuarioData.rol,
+        profesional: usuarioData.profesional,
+        profesion: usuarioData.profesion,
+        esadmin: usuarioData.esadmin
+      }
+    }, { status: 201 })
   } catch (error: any) {
-    console.error('❌ Error general en /api/auth/register:', error)
+    console.error('[register] Unexpected error:', error)
     return NextResponse.json(
-      { success: false, message: 'Error interno del servidor' },
+      { error: 'Error interno del servidor' },
       { status: 500 }
     )
   }

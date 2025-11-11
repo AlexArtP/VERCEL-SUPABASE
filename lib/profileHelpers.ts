@@ -59,8 +59,14 @@ export function formatWorkingHours(start: string, end: string): string {
 export function validateProfile(p: any) {
   const errs: Record<string, string> = {}
   if (!p.nombre || String(p.nombre).trim().length < 2) errs.nombre = 'Nombre obligatorio (mínimo 2 caracteres)'
-  if (!p.apellidos || String(p.apellidos).trim().length < 2) errs.apellidos = 'Apellidos obligatorios'
-  if (!p.profesion || String(p.profesion).trim().length < 2) errs.profesion = 'Profesión obligatoria'
+  
+  // Validar apellidos: pueden venir como dos campos separados
+  const apellido_paterno = p.apellido_paterno || ''
+  const apellido_materno = p.apellido_materno || ''
+  const apellidos_combined = (apellido_paterno + ' ' + apellido_materno).trim()
+  if (!apellidos_combined || apellidos_combined.length < 2) errs.apellidos = 'Apellidos obligatorios'
+  
+  // profesion es solo lectura desde la DB, no se valida para edición
   if (!p.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email)) errs.email = 'Correo inválido'
   if (p.telefono && !/^\+?\d[\d\s\-()+]{6,}$/.test(p.telefono)) errs.telefono = 'Teléfono con formato inválido'
   return errs

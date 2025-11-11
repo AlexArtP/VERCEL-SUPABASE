@@ -15,6 +15,9 @@ interface ProfileCalendarProps {
 	primaryColor?: string
 	// optional ref from parent to control the calendar API
 	calendarRef?: any
+	// si el profesional deshabilitó la agenda, mostrar banner con motivo
+	agendaDisabled?: boolean
+	agendaDisabledReason?: string
 }
 
 const DEFAULT_EVENT_MINUTES = 45
@@ -131,7 +134,7 @@ const getContrastColor = (bg: string) => {
 	}
 }
 
-export function ProfileCalendar({ citas, modulos, primaryColor, calendarRef }: ProfileCalendarProps) {
+export function ProfileCalendar({ citas, modulos, primaryColor, calendarRef, agendaDisabled, agendaDisabledReason }: ProfileCalendarProps) {
 	const events = buildEvents(citas, modulos)
 	// mostrar solo eventos del día de hoy cuando está activado el filtro 'Hoy'
 	const filteredEvents = events.filter((ev) => isSameDay(ev.start as Date, new Date()))
@@ -167,6 +170,13 @@ export function ProfileCalendar({ citas, modulos, primaryColor, calendarRef }: P
 
 	return (
 		<div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+			{/* Banner cuando la agenda está deshabilitada por el profesional */}
+			{agendaDisabled && (
+				<div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+					<strong>Agenda deshabilitada por profesional.</strong>
+					{agendaDisabledReason ? ` MOTIVO: ${agendaDisabledReason}` : ''}
+				</div>
+			)}
 			{/* estilos para atenuar el fondo del día actual y mejorar contraste */}
 			<style>{`.fc .fc-day-today { background: rgba(15,23,42,0.03) !important; }
 			.fc .fc-timegrid-col.fc-day-today { background: rgba(15,23,42,0.015) !important; }

@@ -1,0 +1,342 @@
+
+> my-v0-project@0.1.0 dev
+> next dev
+
+ ÔÜá Port 3000 is in use by process 396, using available port 3001 instead.
+   Ôû▓ Next.js 15.5.5
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.1.88:3001
+   - Environments: .env.local
+
+ Ô£ô Starting...
+ Ô£ô Ready in 1570ms
+ Ôùï Compiling /api/auth/register ...
+ Ô£ô Compiled /api/auth/register in 1554ms (431 modules)
+
+­ƒôØ REGISTER REQUEST - Email: test_144781989@example.com
+============================================================
+­ƒöÉ Creando usuario en Supabase Auth...
+Ô£à Usuario creado en Auth - UID: 9987f717-9130-4555-b286-380ccd0822f0
+­ƒôä Creando perfil en la tabla profiles...
+ÔÜá´©Å Error creando perfil: duplicate key value violates unique constraint "profiles_run_key"
+ POST /api/auth/register 201 in 1804ms
+ Ô£ô Compiled /api/auth/login in 143ms (433 modules)
+
+­ƒöÉ LOGIN REQUEST - Email: test_144781989@example.com
+============================================================
+Ô£à Autenticaci├│n exitosa - UID: 9987f717-9130-4555-b286-380ccd0822f0
+­ƒôä Obteniendo datos del perfil...
+ÔÜá´©Å Perfil NO encontrado, creando con datos m├¡nimos
+ POST /api/auth/login 200 in 275ms
+ Ô£ô Compiled /api/auth/change-password in 127ms (435 modules)
+
+­ƒöæ CHANGE PASSWORD REQUEST - Email: test_144781989@example.com
+============================================================
+­ƒöì Verificando credenciales actuales...
+Ô£à Usuario verificado - UID: 9987f717-9130-4555-b286-380ccd0822f0
+­ƒöÉ Actualizando contrase├▒a con service-role...
+Ô£à Contrase├▒a actualizada exitosamente
+============================================================
+ POST /api/auth/change-password 200 in 284ms
+
+­ƒöÉ LOGIN REQUEST - Email: test_144781989@example.com
+============================================================
+Ô£à Autenticaci├│n exitosa - UID: 9987f717-9130-4555-b286-380ccd0822f0
+­ƒôä Obteniendo datos del perfil...
+ÔÜá´©Å Perfil NO encontrado, creando con datos m├¡nimos
+ POST /api/auth/login 200 in 68ms
+ Ô£ô Compiled in 156ms (435 modules)
+ Ô£ô Compiled in 127ms (435 modules)
+ Ô£ô Compiled in 116ms (435 modules)
+ Ô£ô Compiled in 118ms (435 modules)
+ Ô£ô Compiled in 120ms (435 modules)
+ Ô£ô Compiled in 118ms (435 modules)
+ Ô£ô Compiled in 99ms (240 modules)
+ Ô£ô Compiled in 83ms (240 modules)
+ Ô£ô Compiled in 84ms (240 modules)
+ Ôùï Compiling /_not-found ...
+ Ô¿» ./contexts/AuthContext.tsx
+Error:   x Expression expected
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :   ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+  x Unterminated regexp literal
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :    ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+  x Expression expected
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :     ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./contexts/AuthContext.tsx
+./contexts/DataContext.tsx
+ Ô¿» ./contexts/AuthContext.tsx
+Error:   x Expression expected
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :   ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+  x Unterminated regexp literal
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :    ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+  x Expression expected
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :     ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./contexts/AuthContext.tsx
+./contexts/DataContext.tsx
+ POST /api/auth/register 500 in 5968ms
+ Ô¿» ./contexts/AuthContext.tsx
+Error:   x Expression expected
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :   ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+  x Unterminated regexp literal
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :    ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+  x Expression expected
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :     ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./contexts/AuthContext.tsx
+./contexts/DataContext.tsx
+ Ô¿» ./contexts/AuthContext.tsx
+Error:   x Expression expected
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :   ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+  x Unterminated regexp literal
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :    ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+  x Expression expected
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :     ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./contexts/AuthContext.tsx
+./contexts/DataContext.tsx
+ Ô¿» ./contexts/AuthContext.tsx
+Error:   x Expression expected
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :   ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+  x Unterminated regexp literal
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :    ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+  x Expression expected
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\AuthContext.tsx:118:1]
+ 115 |     throw new Error('useAuth debe usarse dentro de un AuthProvider')
+ 116 |   }
+ 117 |   return context
+ 118 | } */
+     :     ^
+ 119 | export function useAuth() {
+ 120 |   const context = useContext(AuthContext)
+ 120 |   if (context === undefined) {
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./contexts/AuthContext.tsx
+./app/layout.tsx
+ Ô£ô Compiled /_error in 274ms (390 modules)
+ Ô£ô Compiled in 206ms (390 modules)
+ Ô¿» ./contexts/DataContext.tsx
+Error:   x Expected a semicolon
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\DataContext.tsx:365:1]
+ 362 |             console.warn('ÔÜá´©Å No se pudo leer usuario para debug:', readErr2)
+ 363 |           }
+ 364 |         }
+ 365 |       } catch (dbgErr) {
+     :       ^
+ 366 |         console.warn('ÔÜá´©Å Error recogiendo info de debug:', dbgErr)
+ 367 |       }
+ 367 | 
+     `----
+  x Expected a semicolon
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\DataContext.tsx:365:1]
+ 362 |             console.warn('ÔÜá´©Å No se pudo leer usuario para debug:', readErr2)
+ 363 |           }
+ 364 |         }
+ 365 |       } catch (dbgErr) {
+     :         ^^^^^
+ 366 |         console.warn('ÔÜá´©Å Error recogiendo info de debug:', dbgErr)
+ 367 |       }
+ 367 | 
+     `----
+  x Expected ',', got '}'
+     ,-[C:\Users\Alexa\Desktop\NUEVA WEB\NUEVA VERSION CLONADA\Agenda_Vercel\contexts\DataContext.tsx:372:1]
+ 369 |       setError(errorMsg)
+ 370 |       throw err
+ 371 |     }
+ 372 |   }, [])
+     :   ^
+ 373 | 
+ 374 |   // FUNCIONES SIMILARES PARA CITAS
+ 374 |   const addCita = useCallback(
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./contexts/DataContext.tsx
+./app/layout.tsx
+ Ô£ô Compiled in 898ms (1215 modules)
+ Ô£ô Compiled in 322ms (471 modules)
+ Ô£ô Compiled in 285ms (471 modules)
+ Ô£ô Compiled in 328ms (471 modules)
+ Ô£ô Compiled in 268ms (471 modules)
+ Ô£ô Compiled in 285ms (471 modules)
+ Ô£ô Compiled in 272ms (471 modules)
+ Ô£ô Compiled in 346ms (471 modules)
+ Ô£ô Compiled in 461ms (471 modules)
+ Ô£ô Compiled in 288ms (471 modules)
+ Ô£ô Compiled in 363ms (471 modules)
+ Ô£ô Compiled in 392ms (471 modules)
+ Ô£ô Compiled in 342ms (471 modules)
+ Ô£ô Compiled in 346ms (471 modules)
+ Ô£ô Compiled in 307ms (471 modules)
+ Ô£ô Compiled in 299ms (471 modules)
+ Ô£ô Compiled in 263ms (466 modules)
+ Ô£ô Compiled in 281ms (466 modules)
+ Ô£ô Compiled in 341ms (466 modules)
+ Ô£ô Compiled in 260ms (466 modules)
+ Ô£ô Compiled in 225ms (466 modules)
+ Ô£ô Compiled in 275ms (466 modules)
+ Ô£ô Compiled in 292ms (466 modules)
+ Ô£ô Compiled in 282ms (466 modules)
+ Ô£ô Compiled in 230ms (466 modules)
+ Ô£ô Compiled in 247ms (466 modules)
+ Ô£ô Compiled in 262ms (466 modules)
+ Ô£ô Compiled in 222ms (466 modules)
+ Ô£ô Compiled in 246ms (466 modules)
+ Ô£ô Compiled in 225ms (466 modules)
+ Ô£ô Compiled in 206ms (466 modules)
+ Ô£ô Compiled in 357ms (572 modules)
+ Ô£ô Compiled in 238ms (466 modules)
+ Ô£ô Compiled in 249ms (466 modules)
+ Ô£ô Compiled in 246ms (466 modules)
+ Ô£ô Compiled in 210ms (466 modules)

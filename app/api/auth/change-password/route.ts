@@ -1,117 +1,120 @@
-import { NextRequest, NextResponse } from 'next/server';
-import * as admin from 'firebase-admin';
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
-// Verificar que Firebase Admin está inicializado
-if (!admin.apps.length) {
-  const serviceAccount = JSON.parse(
-    process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'
-  );
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    databaseURL: `https://${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebaseio.com`,
-  });
+export const dynamic = 'force-dynamic'
+
+function createPublicClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+  
+  if (!url || !key) {
+    throw new Error('Missing Supabase environment variables')
+  }
+  
+  return createClient(url, key, {
+    auth: { persistSession: false }
+  })
 }
 
-const adminAuth = admin.auth();
-const adminDb = admin.firestore();
+function createServiceRoleClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (!url || !serviceRoleKey) {
+    throw new Error('Missing Supabase service role key')
+  }
+  
+  return createClient(url, serviceRoleKey, {
+    auth: { persistSession: false }
+  })
+}
 
-export async function POST(req: NextRequest) {
+/**
+ * POST /api/auth/change-password
+ * Body: { email, currentPassword, newPassword }
+ * 
+ * Flujo:
+ * 1. Reautenticar usuario con credenciales actuales (client public)
+ * 2. Si OK, actualizar contraseña usando service-role (server-side)
+ */
+export async function POST(request: NextRequest) {
   try {
-    const { userId, newPassword, confirmPassword } = await req.json();
+    const body = await request.json()
+    const { email, currentPassword, newPassword } = body
 
-    console.log('📍 [change-password] Iniciando cambio de contraseña para usuario:', userId);
-
-    // Validaciones básicas
-    if (!userId || !newPassword || !confirmPassword) {
+    if (!email || !currentPassword || !newPassword) {
       return NextResponse.json(
-        { error: 'Faltan campos requeridos (userId, newPassword, confirmPassword)' },
+        { error: 'Email, contraseña actual y nueva contraseña son requeridos' },
         { status: 400 }
-      );
+      )
     }
 
-    if (newPassword !== confirmPassword) {
-      return NextResponse.json(
-        { error: 'Las contraseñas no coinciden' },
-        { status: 400 }
-      );
-    }
-
-    // 🔐 Validaciones según requisitos del usuario: Mínimo 6 caracteres, 1 mayúscula, 1 número
     if (newPassword.length < 6) {
       return NextResponse.json(
-        { error: 'La contraseña debe tener mínimo 6 caracteres' },
+        { error: 'La nueva contraseña debe tener al menos 6 caracteres' },
         { status: 400 }
-      );
+      )
     }
 
-    if (!/[A-Z]/.test(newPassword)) {
+    if (currentPassword === newPassword) {
       return NextResponse.json(
-        { error: 'La contraseña debe contener al menos 1 mayúscula' },
+        { error: 'La nueva contraseña debe ser diferente a la actual' },
         { status: 400 }
-      );
+      )
     }
 
-    if (!/[0-9]/.test(newPassword)) {
+    console.log(`\n🔑 CHANGE PASSWORD REQUEST - Email: ${email}`)
+    console.log('='.repeat(60))
+
+    // Paso 1: Reautenticar con cliente público para verificar contraseña
+    console.log('🔍 Verificando credenciales actuales...')
+    const publicClient = createPublicClient()
+    
+    const { data: authData, error: authError } = await publicClient.auth.signInWithPassword({
+      email,
+      password: currentPassword
+    })
+
+    if (authError || !authData.user) {
+      console.error('❌ Credenciales inválidas:', authError?.message)
       return NextResponse.json(
-        { error: 'La contraseña debe contener al menos 1 número' },
+        { error: 'Contraseña actual incorrecta' },
+        { status: 401 }
+      )
+    }
+
+    const userId = authData.user.id
+    console.log(`✅ Usuario verificado - UID: ${userId}`)
+
+    // Paso 2: Actualizar contraseña usando service-role
+    console.log('🔐 Actualizando contraseña con service-role...')
+    const serviceSupabase = createServiceRoleClient()
+    
+    const { error: updateError } = await (serviceSupabase.auth as any).admin.updateUserById(
+      userId,
+      { password: newPassword }
+    )
+
+    if (updateError) {
+      console.error('❌ Error actualizando contraseña:', updateError.message)
+      return NextResponse.json(
+        { error: updateError.message || 'Error al cambiar contraseña' },
         { status: 400 }
-      );
+      )
     }
 
-    // ✅ Actualizar contraseña en Firebase Auth
-    try {
-      console.log('🔐 Actualizando contraseña en Firebase Auth para:', userId);
-      await adminAuth.updateUser(userId, {
-        password: newPassword,
-      });
-      console.log('✅ Contraseña actualizada en Firebase Auth');
-    } catch (authError: any) {
-      console.error('❌ Error actualizando contraseña en Auth:', authError.message);
-      return NextResponse.json(
-        { error: 'Error actualizando la contraseña. Por favor, intenta de nuevo.' },
-        { status: 500 }
-      );
-    }
+    console.log('✅ Contraseña actualizada exitosamente')
+    console.log('='.repeat(60))
 
-    // ✅ Actualizar flags en Firestore
-    try {
-      console.log('📝 Actualizando Firestore para usuario:', userId);
-      const userDoc = await adminDb.collection('usuarios').doc(userId).get();
-      
-      if (!userDoc.exists) {
-        console.warn('⚠️ Usuario no encontrado en Firestore:', userId);
-        return NextResponse.json(
-          { error: 'Usuario no encontrado en la base de datos' },
-          { status: 404 }
-        );
-      }
-
-      await adminDb.collection('usuarios').doc(userId).update({
-        cambioPasswordRequerido: false, // 🔓 Limpiar flag de cambio requerido
-        fechaCambioPassword: new Date().toISOString(),
-        ultimoAcceso: new Date().toISOString(),
-      });
-      console.log('✅ Firestore actualizado correctamente');
-    } catch (dbError: any) {
-      console.error('❌ Error actualizando Firestore:', dbError.message);
-      return NextResponse.json(
-        { error: 'Error actualizando el perfil del usuario' },
-        { status: 500 }
-      );
-    }
-
-    console.log('✅ [change-password] Cambio completado exitosamente');
     return NextResponse.json({
       success: true,
-      message: 'Contraseña actualizada correctamente',
-      userId,
-    });
+      message: 'Contraseña actualizada exitosamente'
+    })
   } catch (error: any) {
-    console.error('❌ Error en change-password:', error?.message || error);
+    console.error('[change-password] Unexpected error:', error)
     return NextResponse.json(
-      { error: error?.message || 'Error al cambiar la contraseña' },
+      { error: 'Error interno del servidor' },
       { status: 500 }
-    );
+    )
   }
 }

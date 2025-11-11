@@ -1,0 +1,11 @@
+{
+  "supabase": {
+    "type": "supabase",
+    "urlEnv": "NEXT_PUBLIC_SUPABASE_URL",
+    "anonKeyEnv": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "serviceRoleEnv": "SUPABASE_SERVICE_ROLE_KEY",
+    "schema": "public",
+    "migrationsDir": "migrations",
+    "description": "Configuración MCP para conectar herramientas con el proyecto Supabase Local"
+  }
+}

@@ -1,0 +1,848 @@
+
+> my-v0-project@0.1.0 dev
+> next dev
+
+   Ôû▓ Next.js 15.5.5
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.88:3000
+   - Environments: .env.local
+
+ Ô£ô Starting...
+ Ô£ô Ready in 1575ms
+ Ôùï Compiling /api/notifications ...
+ Ô£ô Compiled /api/notifications in 1320ms (435 modules)
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 1526ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 1527ms
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 1520ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 1532ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 47ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 61ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 64ms
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 55ms
+ Ôùï Compiling / ...
+ Ô£ô Compiled / in 3.4s (1255 modules)
+ GET / 200 in 3782ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 100ms
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 113ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 120ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 32ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 35ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 32ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 27ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 40ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 46ms
+ Ô£ô Compiled /api/modulos/batch in 376ms (1240 modules)
+[api/modulos/batch] SUPABASE_SERVICE_ROLE_KEY present: true
+[api/modulos/batch] NEXT_PUBLIC_SUPABASE_URL length: 22
+[api/modulos/batch] ­ƒöì INICIO AUTENTICACI├ôN
+[api/modulos/batch] Authorization header presente: true
+[api/modulos/batch] Authorization length: 683 preview: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3
+[api/modulos/batch] Token despu├®s de retirar Bearer: { length: 676, starts: 'e' }
+[api/modulos/batch] ­ƒöÄ Intentando extraer UID de token. Formato: {
+  startsWithCurly: false,
+  startsWithUrlEncoded: false,
+  startsWithB64: false,
+  length: 676,
+  preview: 'eyJhbGciOiJIUzI1NiIs'
+}
+[api/modulos/batch] ÔØî Token no coincide con UUID regex
+[api/modulos/batch] ÔØî No se pudo extraer UID. token summary: {
+  length: 676,
+  startsWith: 'e',
+  preview: 'eyJhbGciOiJIUzI1NiIs',
+  full: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vMTI3LjAuMC4xOjU0MzIxL2F1dGgvdjEiLCJzdWIiOiIxYTQxZmI4MS00ZGRjLTQ3MDMtYTgxZS04NTgxZDA1OGY4ZTMiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzYyMzYyMzMzLCJpYXQiOjE3NjIzNTg3MzMsImVtYWlsIjoiYS5hcnRlYWdhMDJAdWZyb21haWwuY2wiLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsX3ZlcmlmaWVkIjp0cnVlfSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc2MjM1ODczM31dLCJzZXNzaW9uX2lkIjoiYTBmMGYzZWUtM2U2Ni00ZTM4LTgwOTgtN2I2YzkzNTU1OTFiIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.-617GzZPIr94hFFasq0QkEabKHLvuGmcqkW8beZ8GzQ'
+}
+ POST /api/modulos/batch 401 in 453ms
+ GET / 200 in 142ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 33ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 53ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 61ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 72ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 72ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 70ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 63ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 45ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 27ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 37ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 42ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 23ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 41ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 46ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 49ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 34ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 50ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 56ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 34ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 52ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 56ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 57ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 25ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 38ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 42ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 29ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 39ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 48ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 51ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 27ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 42ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 47ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 32ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 52ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 58ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 60ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 21ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 34ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 39ms
+
+> my-v0-project@0.1.0 dev
+> next dev
+
+   Ôû▓ Next.js 15.5.5
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.88:3000
+   - Environments: .env.local
+
+ Ô£ô Starting...
+ Ô£ô Ready in 1831ms
+ Ôùï Compiling /api/notifications ...
+ Ô£ô Compiled /api/notifications in 1689ms (435 modules)
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 1899ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 1903ms
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 1910ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 1909ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 28ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 44ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 46ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 27ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 51ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 60ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 65ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 27ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 40ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 46ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 32ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 52ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 58ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 61ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 25ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 38ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 44ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 31ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 50ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 58ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 60ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 24ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 33ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 37ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 28ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 47ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 54ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 57ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 54ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 56ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 48ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 34ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 38ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 62ms
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 71ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 26ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 42ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 49ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 51ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 21ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 32ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 37ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 21ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 36ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 40ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 41ms
+ Ôùï Compiling / ...
+ Ô£ô Compiled / in 3.9s (1255 modules)
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 662ms
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 663ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 665ms
+ GET / 200 in 46ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 45ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 50ms
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 52ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 36ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 41ms
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 45ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 25ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 37ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 41ms
+ Ô£ô Compiled /api/modulos/batch in 426ms (1240 modules)
+[api/modulos/batch] SUPABASE_SERVICE_ROLE_KEY present: true
+[api/modulos/batch] NEXT_PUBLIC_SUPABASE_URL length: 22
+[api/modulos/batch] ­ƒöì INICIO AUTENTICACI├ôN
+[api/modulos/batch] Authorization header presente: true
+[api/modulos/batch] Authorization length: 683 preview: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3
+[api/modulos/batch] Token despu├®s de retirar Bearer: { length: 676, starts: 'e' }
+[api/modulos/batch] ­ƒöÄ Intentando extraer UID de token. Formato: {
+  startsWithCurly: false,
+  startsWithUrlEncoded: false,
+  startsWithB64: false,
+  length: 676,
+  preview: 'eyJhbGciOiJIUzI1NiIs'
+}
+[api/modulos/batch] ­ƒöæ Intentando JWT decode (Supabase)
+[api/modulos/batch] Ô£à JWT decodificado. UID extra├¡do del claim "sub": 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+[api/modulos/batch] Ô£à AUTENTICACI├ôN EXITOSA. UID: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+[api/modulos/batch] ÔØî Token no coincide con UUID regex
+ POST /api/modulos/batch 200 in 586ms
+ GET / 200 in 130ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 27ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 56ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 61ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 63ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 26ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 33ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 38ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 33ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 52ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 56ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 58ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 25ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 40ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 46ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 28ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 64ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 70ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 75ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 21ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 37ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 39ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 42ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 19ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 31ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 35ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 25ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 43ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 52ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 55ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 18ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 27ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 31ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 21ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 35ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 43ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 45ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 23ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 29ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 33ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 30ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 37ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 42ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 44ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 21ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 34ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 38ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 22ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 35ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 43ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 46ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 22ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 32ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 34ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 27ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 46ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 50ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 51ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 20ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 33ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 40ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 22ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 35ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 37ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 32ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 27ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 48ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 50ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 54ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 20ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 24ms
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 16ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 26ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 44ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 49ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 51ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 24ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 28ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 34ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 22ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 36ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 41ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 43ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 21ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 34ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 39ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 20ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 38ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 42ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 42ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 27ms
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 29ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 33ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 36ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 60ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 70ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 73ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 22ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 31ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 36ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 20ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 35ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 39ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 41ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 18ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 26ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 31ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 23ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 38ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 39ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 34ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 22ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 30ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 32ms
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 16ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 24ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 34ms
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 25ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 31ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 44ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 48ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 48ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 30ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 39ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 44ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 27ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 44ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 48ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 50ms
+ Ô£ô Compiled in 695ms (1240 modules)
+ GET / 200 in 131ms
+ ÔÜá Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET / 200 in 316ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 102ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 113ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 118ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 53ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 41ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 50ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 28ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 40ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 44ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 30ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 45ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 48ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 50ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 41ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 45ms
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 42ms
+ ÔÜá Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ Ô£ô Compiled in 648ms (1240 modules)
+ GET / 200 in 445ms
+ GET / 200 in 682ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 76ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 82ms
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 87ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 54ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 54ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 65ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 29ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 39ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 43ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 26ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 44ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 48ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 49ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 24ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 42ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 44ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 42ms
+ Ô£ô Compiled in 424ms (1240 modules)
+ ÔÜá Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET / 200 in 134ms
+ GET / 200 in 158ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 66ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 85ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 100ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 51ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 46ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 49ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 28ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 41ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 45ms
+ ÔÜá Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ Ô£ô Compiled in 777ms (1240 modules)
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 823ms
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 829ms
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 831ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 831ms
+ GET / 200 in 430ms
+ GET / 200 in 618ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 41ms
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 41ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 42ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 35ms
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 37ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 39ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 30ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 40ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 45ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 40ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 60ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 64ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 66ms
+ Ô£ô Compiled in 685ms (1240 modules)
+ GET / 200 in 95ms
+ ÔÜá Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET / 200 in 172ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 118ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 131ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 124ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 48ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 54ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 51ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 32ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 45ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 49ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 27ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 43ms
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 46ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 49ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 30ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 35ms
+­ƒöì Buscando usuario por email: a.arteaga02@ufromail.cl
+ GET /api/users?email=a.arteaga02%40ufromail.cl 200 in 25ms
+ Ô£ô Compiled in 457ms (1240 modules)
+ GET / 200 in 79ms
+ ÔÜá Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET / 200 in 153ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 69ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 91ms
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 103ms
+­ƒôï Obteniendo todos los usuarios desde USUARIOS
+Ô£à Se encontraron 1 usuarios en la tabla usuarios
+ GET /api/users 200 in 44ms
+­ƒô¼ Obteniendo notificaciones de: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+­ƒùô´©Å Buscando citas de profesional: 1a41fb81-4ddc-4703-a81e-8581d058f8e3
+ GET /api/notifications?userId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 45ms
+ GET /api/citas?profesionalId=1a41fb81-4ddc-4703-a81e-8581d058f8e3 200 in 42ms

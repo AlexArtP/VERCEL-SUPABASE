@@ -17,7 +17,6 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { DEMO_DATA } from '@/lib/demoData'
-import { loginWithEmail } from '@/lib/firebaseAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -95,14 +94,23 @@ const handleLogin = async (e: React.FormEvent) => {
   setLoading(true)
 
   try {
-    // Primero: Intentar login con Firebase Auth
-    console.log('🔐 Intentando login con Firebase Auth...')
-    const { success, error, userData } = await loginWithEmail(email, password)
-    
+    // Intentar login con Supabase Auth via endpoint
+    console.log('🔐 Intentando login con Supabase Auth...')
+    const loginResponse = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    })
+
+    const { success, userData, error: apiError } = await loginResponse.json()
+
     if (success && userData) {
-      console.log('✅ Login Firebase exitoso')
+      console.log('✅ Login Supabase exitoso')
+      // Guardar token en localStorage
+      localStorage.setItem('sistema_auth_token', JSON.stringify(userData.token || userData))
+      
       // Redirigir según rol
-      const isAdmin = userData?.esAdmin === true
+      const isAdmin = userData?.is_admin === true || userData?.esAdmin === true
       if (isAdmin) {
         router.push('/admin/init-database')
       } else {
@@ -112,7 +120,7 @@ const handleLogin = async (e: React.FormEvent) => {
     }
 
     // Fallback: Intentar con credenciales de demostración
-    console.log('⚠️ Firebase Auth falló, intentando con demo...')
+    console.log('⚠️ Supabase Auth falló, intentando con demo...')
     const demoUser = validateDemoCredentials(email, password)
     
     if (demoUser) {
@@ -127,7 +135,7 @@ const handleLogin = async (e: React.FormEvent) => {
         router.push('/')
       }
     } else {
-      setError(error || 'Email o contraseña incorrectos')
+      setError(apiError || 'Email o contraseña incorrectos')
     }
   } catch (err) {
     console.error('❌ Error en handleLogin:', err)

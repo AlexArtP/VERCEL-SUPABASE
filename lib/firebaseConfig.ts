@@ -135,15 +135,15 @@ export function setupCitasListener(
 
 /**
  * Escucha cambios en plantillas en tiempo real
- * Nota: obtiene TODAS las plantillas sin filtrar por estamento.
+ * Nota: obtiene TODAS las plantillas sin filtrar por profesion.
  * El filtrado por profesional se hace en el componente que las consume.
  */
 export function setupPlantillasListener(
-  estamento: string,
+  profesion: string,
   callback: (plantillas: any[]) => void
 ) {
   // Leer TODAS las plantillas definidas desde la colección "moduloDefinitions"
-  // Sin filtro de estamento para que "Gestionar Módulos" pueda mostrar todas las del profesional
+  // Sin filtro de profesion para que "Gestionar Módulos" pueda mostrar todas las del profesional
   const q = query(collection(db, 'moduloDefinitions'))
 
   return onSnapshot(q, (snapshot) => {

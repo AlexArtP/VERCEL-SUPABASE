@@ -7,6 +7,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import supabase from '@/lib/supabaseClient'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card } from '@/components/ui/card'
@@ -71,31 +72,29 @@ export function AuthorizeRegistrationsModal({
     setInitialLoading(true)
     setError(null)
     try {
-      // Lazy-import Firestore functions
-      const { db } = await import('@/lib/firebaseConfig')
-      const { collection, getDocs } = await import('firebase/firestore')
+      // Leer desde Supabase
+      const { data: rows, error } = await supabase
+        .from('solicitudes')
+        .select('*')
+        .order('fechaSolicitud', { ascending: false })
 
-      const q = collection(db, 'solicitudes')
-      const snapshot = await getDocs(q)
+      if (error) throw error
 
-      const data: RegistrationRequest[] = snapshot.docs.map((doc) => {
-        const docData = doc.data()
-        return {
-          id: doc.id,
-          nombre: docData.nombre || '',
-          apellidoPaterno: docData.apellidoPaterno || '',
-          apellidoMaterno: docData.apellidoMaterno || '',
-          run: docData.run || '',
-          profesion: docData.profesion || '',
-          email: docData.email || '',
-          telefono: docData.telefono || '',
-          cargoActual: docData.cargoActual || '',
-          sobreTi: docData.sobreTi || '',
-          fechaSolicitud: docData.fechaSolicitud || new Date().toISOString(),
-          estado: (docData.estado as 'pendiente' | 'aprobado' | 'rechazado') || 'pendiente',
-          esAdmin: docData.esAdmin || false,
-        }
-      })
+      const data: RegistrationRequest[] = (rows || []).map((r: any) => ({
+        id: r.id,
+        nombre: r.nombre || '',
+        apellidoPaterno: r.apellidoPaterno || '',
+        apellidoMaterno: r.apellidoMaterno || '',
+        run: r.run || '',
+        profesion: r.profesion || '',
+        email: r.email || '',
+        telefono: r.telefono || '',
+        cargoActual: r.cargoActual || '',
+        sobreTi: r.sobreTi || '',
+        fechaSolicitud: r.fechaSolicitud || new Date().toISOString(),
+        estado: (r.estado as 'pendiente' | 'aprobado' | 'rechazado') || 'pendiente',
+        esAdmin: r.esAdmin || false,
+      }))
 
       setRegistrations(data)
     } catch (err) {
@@ -122,13 +121,13 @@ export function AuthorizeRegistrationsModal({
   const updateRegistrations = async (ids: string[], newState: 'aprobado' | 'rechazado') => {
     setLoading(true)
     try {
-      const { db } = await import('@/lib/firebaseConfig')
-      const { doc, updateDoc } = await import('firebase/firestore')
+      // Actualización en lote con Supabase
+      const { error } = await supabase
+        .from('solicitudes')
+        .update({ estado: newState })
+        .in('id', ids)
 
-      for (const id of ids) {
-        const docRef = doc(db, 'solicitudes', id)
-        await updateDoc(docRef, { estado: newState })
-      }
+      if (error) throw error
 
       // Actualizar estado local
       setRegistrations(
@@ -158,11 +157,12 @@ export function AuthorizeRegistrationsModal({
       const reg = registrations.find((r) => r.id === id)
       if (!reg) return
 
-      const { db } = await import('@/lib/firebaseConfig')
-      const { doc, updateDoc } = await import('firebase/firestore')
+      const { error } = await supabase
+        .from('solicitudes')
+        .update({ esAdmin: !reg.esAdmin })
+        .eq('id', id)
 
-      const docRef = doc(db, 'solicitudes', id)
-      await updateDoc(docRef, { esAdmin: !reg.esAdmin })
+      if (error) throw error
 
       setRegistrations(
         registrations.map((r) =>
@@ -179,11 +179,12 @@ export function AuthorizeRegistrationsModal({
     if (!confirm('¿Seguro que quieres eliminar esta solicitud?')) return
 
     try {
-      const { db } = await import('@/lib/firebaseConfig')
-      const { doc, deleteDoc } = await import('firebase/firestore')
+      const { error } = await supabase
+        .from('solicitudes')
+        .delete()
+        .eq('id', id)
 
-      const docRef = doc(db, 'solicitudes', id)
-      await deleteDoc(docRef)
+      if (error) throw error
 
       setRegistrations(registrations.filter((reg) => reg.id !== id))
       setSelectedIds(selectedIds.filter((sid) => sid !== id))

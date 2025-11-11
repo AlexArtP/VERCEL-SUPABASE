@@ -1,116 +1,129 @@
-import { useEffect, useCallback } from 'react';
-import { onSnapshot, query, collection, where, DocumentSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebaseConfig';
-import { useNotifications } from '@/contexts/NotificationContext';
+/**
+ * ARCHIVO: lib/useNotificationManager.ts (REFACTORIZADO - Supabase Realtime)
+ * PROPÓSITO: Hook para obtener notificaciones via listeners en tiempo real
+ * 
+ * Cambio: polling cada 10s → Supabase Realtime (eventos push, economía optimizada)
+ */
 
-export interface SolicitudRegistro {
-  id: string;
-  email: string;
-  nombre: string;
-  apellidoPaterno?: string;
-  apellidoMaterno?: string;
-  estado: 'pendiente' | 'aprobado' | 'rechazado';
-  run?: string;
-  telefono?: string;
-  fechaRegistro?: string;
-  rol?: string;
+'use client'
+
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabaseClient'
+import { useNotifications } from '@/contexts/NotificationContext'
+
+export interface Notification {
+  id: string
+  userId: string
+  title: string
+  message: string
+  type: 'info' | 'warning' | 'error' | 'success'
+  read: boolean
+  createdAt: string
+  data?: Record<string, any>
 }
 
 /**
- * Hook que escucha solicitudes de registro pendientes en Firestore
- * y genera notificaciones automáticas para administradores
- * @param isAdmin - boolean para saber si el usuario actual es admin
+ * Hook que obtiene notificaciones del usuario actual via Supabase Realtime
+ * @param userId - ID del usuario
  */
-export function useNotificationManager(isAdmin: boolean) {
-  const { addNotification, removeNotification } = useNotifications();
-
-  // Rastrear IDs de notificaciones para cada solicitud
-  // para poder eliminarlas cuando la solicitud cambie de estado
-  const notificationMapRef = new Map<string, string>();
+export function useNotificationManager(userId: string | null) {
+  const { addNotification } = useNotifications()
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
+  const DEBUG = false
 
   useEffect(() => {
-    if (!isAdmin) {
-      console.log('⏭️  Usuario no es admin, no escuchando solicitudes');
-      return;
+    if (!userId) {
+      setNotifications([])
+      setLoading(false)
+      return
     }
 
-    console.log('🔔 Iniciando listener de solicitudes pendientes...');
+    let isMounted = true
+    const DEBUG_REALTIME = false
 
-    let unsubscribe: (() => void) | null = null;
+    // Fetch inicial de notificaciones
+    async function fetchInitialNotifications() {
+      try {
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
 
-    try {
-      // Query: obtener todas las solicitudes con estado 'pendiente'
-      const q = query(
-        collection(db, 'solicitudRegistro'),
-        where('estado', '==', 'pendiente')
-      );
-
-      // Listener en tiempo real
-      unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          console.log(`📋 Snapshot recibido: ${snapshot.docs.length} solicitudes pendientes`);
-
-          // Procesar cambios (agregadas, modificadas, removidas)
-          snapshot.docChanges().forEach((change) => {
-            const solicitud = change.doc.data() as SolicitudRegistro;
-            const solicitudId = change.doc.id;
-            const nombreCompleto = `${solicitud.nombre} ${solicitud.apellidoPaterno || ''} ${solicitud.apellidoMaterno || ''}`.trim();
-
-            if (change.type === 'added') {
-              console.log(`✅ Nueva solicitud pendiente: ${nombreCompleto}`);
-
-              // Crear notificación
-              const notifId = `solicitud_${solicitudId}`;
-              const notification = {
-                type: 'solicitud' as const,
-                title: '📝 Nueva solicitud de registro',
-                message: `${nombreCompleto} desea registrarse en el sistema.`,
-                data: {
-                  solicitudId,
-                  email: solicitud.email,
-                  nombre: nombreCompleto,
-                },
-              };
-
-              addNotification(notification);
-              notificationMapRef.set(solicitudId, notifId);
-            } else if (change.type === 'modified') {
-              // Si una solicitud cambió de estado (aprobada/rechazada)
-              // eliminar la notificación asociada
-              if (solicitud.estado !== 'pendiente') {
-                console.log(`🗑️  Solicitud ${solicitudId} ya no está pendiente, limpiando notificación`);
-                const notifId = notificationMapRef.get(solicitudId);
-                if (notifId) {
-                  removeNotification(notifId);
-                  notificationMapRef.delete(solicitudId);
-                }
-              }
-            } else if (change.type === 'removed') {
-              // Si se elimina una solicitud, remover notificación
-              console.log(`🗑️  Solicitud ${solicitudId} eliminada`);
-              const notifId = notificationMapRef.get(solicitudId);
-              if (notifId) {
-                removeNotification(notifId);
-                notificationMapRef.delete(solicitudId);
-              }
-            }
-          });
-        },
-        (error) => {
-          console.error('❌ Error escuchando solicitudes:', error);
+        if (error) throw error
+        if (isMounted) {
+          setNotifications((data as Notification[]) || [])
+          setLoading(false)
+          if (DEBUG_REALTIME) console.log(`📌 Notificaciones iniciales cargadas: ${(data || []).length}`)
         }
-      );
-    } catch (error) {
-      console.error('❌ Error configurando listener:', error);
+      } catch (err: any) {
+        if (isMounted) {
+          console.error('❌ Error cargando notificaciones iniciales:', err)
+          setLoading(false)
+        }
+      }
     }
 
-    // Cleanup: remover listener al desmontar o cambiar isAdmin
+    // Setup del listener Realtime
+    function setupRealtimeListener() {
+      if (DEBUG_REALTIME) console.log(`🔔 [Realtime] Iniciando listener para notificaciones de usuario: ${userId}`)
+
+      const subscription = supabase
+        .channel(`notifications:userId:${userId}`)
+        .on<Notification>(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload: any) => {
+            if (!isMounted) return
+            const DEBUG_EVENT = false
+            if (DEBUG_EVENT) {
+              console.log(`🔔 [Realtime] Evento notificaciones:`, {
+                event: payload.eventType,
+                new: payload.new,
+              })
+            }
+
+            setNotifications((prev) => {
+              if (payload.eventType === 'INSERT') {
+                // Agregar al inicio (más reciente primero)
+                return [payload.new as Notification, ...prev]
+              } else if (payload.eventType === 'UPDATE') {
+                return prev.map((n) => (n.id === payload.new.id ? (payload.new as Notification) : n))
+              } else if (payload.eventType === 'DELETE') {
+                return prev.filter((n) => n.id !== payload.old.id)
+              }
+              return prev
+            })
+          }
+        )
+        .subscribe((status) => {
+          if (DEBUG_REALTIME) console.log(`🔌 [Realtime] Notificaciones listener status:`, status)
+        })
+
+      return subscription
+    }
+
+    // Cargar datos iniciales
+    fetchInitialNotifications()
+
+    // Setup listener
+    const subscription = setupRealtimeListener()
+
     return () => {
-      console.log('🛑 Deteniendo listener de solicitudes');
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [isAdmin, addNotification, removeNotification]);
+      isMounted = false
+      subscription.unsubscribe()
+      if (DEBUG_REALTIME) console.log('🛑 [Realtime] Listener de notificaciones detenido')
+    }
+  }, [userId])
+
+  return {
+    notifications,
+    loading,
+  }
 }

@@ -4,26 +4,24 @@
  * 
  * Este contexto proporciona:
  * - Usuario actual autenticado
- * - Funciones de login/logout
  * - Estado de carga
  * - Errores de autenticación
+ * 
+ * NOTA: El login/logout ahora se manejan en app/page.tsx con Supabase Auth
+ * Este contexto puede usarse para persistencia de sesión en el futuro
  */
 
 'use client'
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import type { User } from 'firebase/auth'
-
 
 /**
  * INTERFAZ: Forma del contexto de autenticación
  */
 interface AuthContextType {
-  user: User | null
+  user: any | null
   loading: boolean
   error: string | null
-  login: (email: string, password: string) => Promise<void>
-  logout: () => Promise<void>
 }
 
 /**
@@ -34,7 +32,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 /**
  * PROVEEDOR: AuthProvider
  * 
- * Envuelve la aplicación y proporciona autenticación a todos los componentes
+ * Envuelve la aplicación y proporciona estado de autenticación a todos los componentes
  * 
  * Ejemplo de uso en app/layout.tsx:
  *   <AuthProvider>
@@ -42,89 +40,50 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
  *   </AuthProvider>
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   /**
-   * Efecto: Escuchar cambios en autenticación
+   * Efecto: Restaurar sesión desde localStorage
    * 
    * Se ejecuta cuando la aplicación carga
-   * Configura un listener que detecta cuando el usuario inicia/cierra sesión
+   * Intenta restaurar el usuario desde el token guardado en localStorage
    */
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined
+    try {
+      const TOKEN_KEY = 'sistema_auth_token'
+      const storedToken = localStorage.getItem(TOKEN_KEY)
 
-    // Lazy-load firebase helpers only when needed (reduces initial bundle)
-    import('@/lib/firebaseConfig')
-      .then((mod) => {
-        try {
-          const currentUser = mod.getCurrentUser()
-          setUser(currentUser)
-
-          // Escuchar cambios futuros
-          unsubscribe = mod.onAuthStateChange((firebaseUser: User | null) => {
-            setUser(firebaseUser)
-            setLoading(false)
+      if (storedToken) {
+        const tokenData = JSON.parse(storedToken)
+        
+        // Verificar que el token no está expirado
+        if (tokenData.expiry && tokenData.expiry > Date.now()) {
+          // Restaurar datos del usuario desde el token
+          setUser({
+            id: tokenData.id,
+            email: tokenData.email,
+            nombre: tokenData.nombre,
+            esAdmin: tokenData.esAdmin
           })
-        } catch (e) {
-          setLoading(false)
+        } else {
+          // Token expirado, limpiar
+          localStorage.removeItem(TOKEN_KEY)
         }
-      })
-      .catch(() => {
-        setLoading(false)
-      })
-
-    return () => {
-      if (unsubscribe) unsubscribe()
+      }
+    } catch (err) {
+      console.warn('Error restaurando sesión desde localStorage:', err)
+    } finally {
+      setLoading(false)
     }
   }, [])
-
-  /**
-   * FUNCIÓN: Login
-   * 
-   * Intenta iniciar sesión con email y contraseña
-   */
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      setError(null)
-      setLoading(true)
-      // Lazy-import the login function
-      const mod = await import('@/lib/firebaseConfig')
-      await mod.loginUser(email, password)
-      setLoading(false)
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
-      setLoading(false)
-      throw err
-    }
-  }
-
-  /**
-   * FUNCIÓN: Logout
-   * 
-   * Cierra la sesión del usuario
-   */
-  const handleLogout = async () => {
-    try {
-      setError(null)
-      const mod = await import('@/lib/firebaseConfig')
-      await mod.logoutUser()
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
-      throw err
-    }
-  }
 
   // Valor que se proporciona a todos los componentes
   const value: AuthContextType = {
     user,
     loading,
     error,
-    login: handleLogin,
-    logout: handleLogout,
   }
 
   return (
@@ -141,12 +100,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  * 
  * Ejemplo de uso:
  *   function MyComponent() {
- *     const { user, login, logout } = useAuth()
+ *     const { user, loading } = useAuth()
  *     
+ *     if (loading) return <p>Cargando...</p>
  *     if (user) {
- *       return <p>Hola {user.displayName}</p>
+ *       return <p>Hola {user.nombre}</p>
  *     }
- *     return <button onClick={() => login(email, password)}>Login</button>
+ *     return <p>No autenticado</p>
  *   }
  */
 export function useAuth() {

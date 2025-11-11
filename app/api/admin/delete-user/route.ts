@@ -1,11 +1,13 @@
 /**
  * ENDPOINT: POST /api/admin/delete-user
- * Propósito: Eliminar un usuario de Firestore
+ * MIGRADO: De Firebase Admin SDK a Supabase Admin API
+ * 
+ * Propósito: Eliminar un usuario de Supabase
  * Requiere: userId
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFirestore } from '@/lib/firebaseAdmin'
+import { deleteUser } from '@/lib/supabaseAdmin'
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,8 +23,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`🗑️  Eliminando usuario: ${userId}`)
 
-    const db = getAdminFirestore()
-    await db.collection('usuarios').doc(userId).delete()
+    // Eliminar de Auth (también elimina el perfil por cascada si está configurado)
+    await deleteUser(userId)
 
     console.log(`✅ Usuario eliminado: ${userId}`)
 

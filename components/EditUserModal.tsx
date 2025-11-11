@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 
 interface Usuario {
   id: string;
+  userid?: string;
   nombre: string;
   apellidos?: string;
   apellidoPaterno?: string;
@@ -136,6 +137,7 @@ export function EditUserModal({
               onChange={handleInputChange}
               placeholder="Nombre"
               disabled={loading}
+              className="bg-white border-gray-300 text-gray-900"
             />
           </div>
 
@@ -152,6 +154,7 @@ export function EditUserModal({
                 onChange={handleInputChange}
                 placeholder="Apellido paterno"
                 disabled={loading}
+                className="bg-white border-gray-300 text-gray-900"
               />
             </div>
             <div>
@@ -165,6 +168,7 @@ export function EditUserModal({
                 onChange={handleInputChange}
                 placeholder="Apellido materno"
                 disabled={loading}
+                className="bg-white border-gray-300 text-gray-900"
               />
             </div>
           </div>
@@ -181,6 +185,7 @@ export function EditUserModal({
               onChange={handleInputChange}
               placeholder="correo@ejemplo.com"
               disabled={loading}
+              className="bg-white border-gray-300 text-gray-900"
             />
           </div>
 
@@ -196,6 +201,7 @@ export function EditUserModal({
               onChange={handleInputChange}
               placeholder="+56 9 1234 5678"
               disabled={loading}
+              className="bg-white border-gray-300 text-gray-900"
             />
           </div>
 
@@ -211,6 +217,7 @@ export function EditUserModal({
               onChange={handleInputChange}
               placeholder="12.345.678-9"
               disabled={loading}
+              className="bg-white border-gray-300 text-gray-900"
             />
           </div>
 
@@ -226,6 +233,7 @@ export function EditUserModal({
               onChange={handleInputChange}
               placeholder="Ej: Psicólogo, Médico"
               disabled={loading}
+              className="bg-white border-gray-300 text-gray-900"
             />
           </div>
 
@@ -239,7 +247,7 @@ export function EditUserModal({
               value={formData.rol || 'profesional'}
               onChange={handleInputChange}
               disabled={loading}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="profesional">Profesional</option>
               <option value="administrativo">Administrativo</option>

@@ -1,115 +1,115 @@
 /**
  * ARCHIVO: app/api/auth/debug-admin-check/route.ts
- * PROPÓSITO: Endpoint para debuguear por qué isAdminFromFirestore() falla
+ * MIGRADO: De Firebase Admin SDK a Supabase Admin API
  * 
- * Verificar:
- * 1. Si el usuario está autenticado
- * 2. Si tiene documento en usuarios collection
- * 3. Si el documento tiene esAdmin: true
- * 4. Si la función isAdminFromFirestore() puede leer el documento
+ * PROPÓSITO: Endpoint para debuguear verificación de admin
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { initializeFirebaseAdmin } from '@/lib/firebaseAdmin'
-import { getAuth } from 'firebase-admin/auth'
-import { getFirestore } from 'firebase-admin/firestore'
+import { getUserProfile, createSupabaseAdminClient } from '@/lib/supabaseAdmin'
 
 export async function POST(request: NextRequest) {
   try {
-    const { uid, token } = await request.json()
+    const { userId } = await request.json()
 
-    if (!uid) {
+    if (!userId) {
       return NextResponse.json(
-        { error: 'uid requerido' },
+        { error: 'userId requerido' },
         { status: 400 }
       )
     }
 
-    const admin = initializeFirebaseAdmin()
-    const adminDb = getFirestore(admin.app())
-    const adminAuth = getAuth(admin.app())
+    const supabase = createSupabaseAdminClient()
 
-    console.log(`\n🔍 DEBUG ADMIN CHECK - UID: ${uid}`)
-    console.log('=' .repeat(60))
+    console.log('[DEBUG ADMIN CHECK] UserId:', userId)
+    console.log('='.repeat(60))
 
-    // 1. Verificar que el usuario existe en Firebase Auth
-    let userAuth = null
-    try {
-      userAuth = await adminAuth.getUser(uid)
-      console.log(`✅ Usuario encontrado en Firebase Auth`)
-      console.log(`   Email: ${userAuth.email}`)
-      console.log(`   UID: ${userAuth.uid}`)
-    } catch (err: any) {
-      console.log(`❌ Usuario NO encontrado en Firebase Auth`)
-      console.log(`   Error: ${err.message}`)
+    // 1. Verificar que el usuario existe en Supabase Auth
+    const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers()
+    const userAuth = authUsers?.find(u => u.id === userId)
+
+    if (!userAuth) {
+      console.log('[ERROR] Usuario NO encontrado en Supabase Auth')
       return NextResponse.json({
-        error: `Usuario ${uid} no existe en Firebase Auth`,
+        error: 'Usuario ' + userId + ' no existe en Supabase Auth',
         debug: {
-          step: 'firebase_auth_lookup',
-          uid,
+          step: 'supabase_auth_lookup',
+          userId,
           found: false
         }
       }, { status: 404 })
     }
 
-    // 2. Verificar que el usuario existe en Firestore
-    const userDoc = await adminDb.collection('usuarios').doc(uid).get()
-    
-    if (!userDoc.exists) {
-      console.log(`❌ Usuario NO encontrado en Firestore (usuarios collection)`)
+    console.log('[SUCCESS] Usuario encontrado en Supabase Auth')
+    console.log('[INFO] Email:', userAuth.email)
+    console.log('[INFO] UUID:', userAuth.id)
+
+    // 2. Verificar que el usuario existe en profiles
+    try {
+      const userData = await getUserProfile(userId)
+
+      if (!userData) {
+        console.log('[WARNING] Usuario NO tiene perfil en profiles')
+        return NextResponse.json({
+          error: 'Usuario ' + userId + ' no tiene perfil en profiles',
+          debug: {
+            step: 'profiles_lookup',
+            userId,
+            found: false,
+            auth_found: true
+          }
+        }, { status: 404 })
+      }
+
+      console.log('[SUCCESS] Usuario encontrado en profiles')
+      console.log('[INFO] Datos del perfil:')
+      console.log('[INFO] email:', userData.email)
+      console.log('[INFO] full_name:', userData.full_name)
+      console.log('[INFO] is_admin:', userData.is_admin)
+
+      // 3. Verificar si is_admin está en true
+      if (userData.is_admin !== true) {
+        console.log('[ERROR] Usuario NO es admin')
+        return NextResponse.json({
+          error: 'Usuario ' + userId + ' no es administrador',
+          debug: {
+            step: 'admin_check',
+            userId,
+            isAdmin: false,
+            role: userData.role
+          }
+        }, { status: 403 })
+      }
+
+      console.log('[SUCCESS] Usuario ES admin')
+      console.log('='.repeat(60))
+
       return NextResponse.json({
-        error: `Usuario ${uid} no existe en Firestore usuarios collection`,
-        debug: {
-          step: 'firestore_lookup',
-          uid,
-          found: false,
-          firestore_path: `usuarios/${uid}`
+        success: true,
+        message: 'Usuario es administrador',
+        user: {
+          userId,
+          email: userData.email,
+          full_name: userData.full_name,
+          role: userData.role,
+          is_admin: userData.is_admin
         }
-      }, { status: 404 })
-    }
+      })
 
-    const userData = userDoc.data()
-    console.log(`✅ Usuario encontrado en Firestore`)
-    console.log(`   Datos del documento:`)
-    console.log(`   - email: ${userData?.email}`)
-    console.log(`   - nombre: ${userData?.nombre}`)
-    console.log(`   - esAdmin: ${userData?.esAdmin}`)
-
-    // 3. Verificar si esAdmin está en true
-    if (userData?.esAdmin !== true) {
-      console.log(`❌ Usuario NO es admin (esAdmin no es true)`)
+    } catch (err: any) {
+      console.error('[ERROR] Error accediendo a profiles:', err.message)
       return NextResponse.json({
-        error: `Usuario ${uid} no es administrador (esAdmin=${userData?.esAdmin})`,
+        error: 'Error verificando perfil: ' + err.message,
         debug: {
-          step: 'admin_check',
-          uid,
-          esAdmin: userData?.esAdmin,
+          step: 'profiles_error',
+          userId,
           isAdmin: false
         }
-      }, { status: 403 })
+      }, { status: 500 })
     }
 
-    console.log(`✅ Usuario ES admin (esAdmin=true)`)
-    console.log('=' .repeat(60))
-
-    return NextResponse.json({
-      success: true,
-      isAdmin: true,
-      user: {
-        uid,
-        email: userData.email,
-        nombre: userData.nombre,
-        esAdmin: userData.esAdmin
-      },
-      debug: {
-        firebaseAuth: 'encontrado',
-        firestore: 'encontrado',
-        esAdmin: true
-      }
-    })
-
   } catch (error: any) {
-    console.error('❌ Error en debug-admin-check:', error.message)
+    console.error('[ERROR] Error en debug-admin-check:', error.message)
     return NextResponse.json(
       { 
         error: error.message,

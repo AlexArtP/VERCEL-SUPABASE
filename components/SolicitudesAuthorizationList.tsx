@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { db } from '@/lib/firebaseConfig'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import supabase from '@/lib/supabaseClient'
 import { Check, X, Loader } from 'lucide-react'
 
 interface Solicitud {
@@ -19,23 +18,20 @@ export function SolicitudesAuthorizationList() {
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<string | null>(null)
 
-  // Cargar solicitudes pendientes de Firestore
+  // Cargar solicitudes pendientes de Supabase
   useEffect(() => {
     const loadSolicitudes = async () => {
       try {
         setLoading(true)
-        const q = query(
-          collection(db, 'solicitudes'),
-          where('estado', '==', 'pendiente')
-        )
-        const snapshot = await getDocs(q)
-        const data: Solicitud[] = []
-        snapshot.forEach((doc) => {
-          data.push({
-            id: doc.id,
-            ...doc.data(),
-          } as Solicitud)
-        })
+        const { data: rows, error } = await supabase
+          .from('solicitudregistro')
+          .select('*')
+          .eq('estado', 'pendiente')
+          .order('fechaSolicitud', { ascending: false })
+
+        if (error) throw error
+
+        const data: Solicitud[] = (rows || []).map((r: any) => ({ id: r.id, ...r }))
         setSolicitudes(data)
       } catch (error) {
         console.error('❌ Error cargando solicitudes:', error)

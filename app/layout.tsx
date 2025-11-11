@@ -14,8 +14,8 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Agendas de profesionales - CECOSAM Lautaro',
+  description: 'Sistema de gestión de citas médicas y agendas de profesionales',
   generator: 'v0.app',
 }
 

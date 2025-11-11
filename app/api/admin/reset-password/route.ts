@@ -2,119 +2,96 @@
  * ARCHIVO: app/api/admin/reset-password/route.ts
  * PROPÓSITO: Resetear contraseña de un usuario (admin only)
  * 
- * POST /api/admin/reset-password
- * Body: { email: string, newPassword: string }
+ * MIGRADO: De Firebase Admin SDK a Supabase Admin API
  * 
- * Esto elimina al usuario de Firebase Auth y lo recrea con la nueva contraseña
+ * POST /api/admin/reset-password
+ * Body: { email: string } O { userId: string }
+ * 
+ * Envía enlace de recuperación de contraseña al usuario
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { initializeFirebaseAdmin } from '@/lib/firebaseAdmin'
-import { getAuth } from 'firebase-admin/auth'
-import { getFirestore } from 'firebase-admin/firestore'
+import { sendPasswordResetEmail, getUserByEmail, getUserProfile } from '@/lib/supabaseAdmin'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, newPassword, uid } = await request.json()
+    const { email, userId } = await request.json()
 
-    if (!email && !uid) {
+    if (!email && !userId) {
       return NextResponse.json(
-        { error: 'email o uid requerido' },
+        { error: 'email o userId requerido' },
         { status: 400 }
       )
     }
 
-    if (!newPassword || newPassword.length < 6) {
-      return NextResponse.json(
-        { error: 'newPassword debe tener al menos 6 caracteres' },
-        { status: 400 }
-      )
-    }
-
-    const admin = initializeFirebaseAdmin()
-    const auth = getAuth(admin.app())
-    const db = getFirestore(admin.app())
-
-    console.log(`\n🔄 RESET PASSWORD REQUEST`)
-    console.log('=' .repeat(60))
-    console.log(`Email: ${email || 'N/A'}`)
-    console.log(`UID: ${uid || 'Por determinar'}`)
+    console.log('[RESET PASSWORD REQUEST]')
+    console.log('='.repeat(60))
+    console.log('[EMAIL]', email || 'N/A')
+    console.log('[USERID]', userId || 'Por determinar')
 
     // 1. Encontrar el usuario
-    let userUid = uid
-    if (!userUid && email) {
+    let authUser = null
+    if (email) {
       try {
-        const user = await auth.getUserByEmail(email)
-        userUid = user.uid
-        console.log(`✅ UID encontrado: ${userUid}`)
+        authUser = await getUserByEmail(email)
+        if (!authUser) {
+          console.log('[ERROR] Usuario NO encontrado en Supabase Auth con email:', email)
+          return NextResponse.json(
+            { 
+              error: `Usuario ${email} no encontrado en Supabase Auth`,
+              solution: 'El usuario debe existir en Supabase Auth primero'
+            },
+            { status: 404 }
+          )
+        }
+        console.log('[SUCCESS] Usuario encontrado:', authUser.id)
       } catch (err: any) {
-        console.log(`❌ Usuario NO encontrado en Firebase Auth con email: ${email}`)
+        console.error('[ERROR] Error buscando usuario:', err.message)
         return NextResponse.json(
-          { 
-            error: `Usuario ${email} no encontrado en Firebase Auth`,
-            solution: 'El usuario debe existir en Firebase Auth primero'
-          },
-          { status: 404 }
+          { error: err.message },
+          { status: 500 }
         )
       }
+    } else if (userId) {
+      console.log('[INFO] Usando userId proporcionado:', userId)
     }
 
-    if (!userUid) {
+    const targetEmail = email || (authUser?.email)
+    if (!targetEmail) {
       return NextResponse.json(
-        { error: 'No se pudo determinar el UID' },
+        { error: 'No se pudo determinar el email del usuario' },
         { status: 400 }
       )
     }
 
-    // 2. Actualizar contraseña
+    // 2. Enviar enlace de recuperación de contraseña
     try {
-      console.log(`🔐 Actualizando contraseña para UID: ${userUid}`)
+      console.log('[SENDING] Enlace de recuperación de contraseña a:', targetEmail)
       
-      await auth.updateUser(userUid, {
-        password: newPassword,
-        emailVerified: true
+      const result = await sendPasswordResetEmail(targetEmail)
+      
+      console.log('[SUCCESS] Enlace de recuperación enviado exitosamente')
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Enlace de recuperación de contraseña enviado a ' + targetEmail,
+        email: targetEmail,
+        recoveryLink: process.env.NODE_ENV === 'development' ? result.recoveryLink : undefined
       })
       
-      console.log(`✅ Contraseña actualizada exitosamente`)
     } catch (err: any) {
-      console.error(`❌ Error al actualizar contraseña:`, err.message)
+      console.error('[ERROR] Error al enviar enlace de recuperación:', err.message)
       return NextResponse.json(
         { 
-          error: `No se pudo actualizar la contraseña: ${err.message}`,
+          error: 'No se pudo enviar enlace de recuperación: ' + err.message,
           code: err.code
         },
         { status: 500 }
       )
     }
 
-    // 3. Verificar documento en Firestore
-    console.log(`📄 Verificando documento en Firestore...`)
-    const userDoc = await db.collection('usuarios').doc(userUid).get()
-    
-    let firestoreData: any = null
-    if (userDoc.exists) {
-      firestoreData = userDoc.data()
-      console.log(`✅ Documento encontrado en Firestore`)
-      console.log(`   esAdmin: ${firestoreData.esAdmin}`)
-    } else {
-      console.log(`⚠️ Documento NO encontrado en Firestore`)
-    }
-
-    console.log('=' .repeat(60))
-
-    return NextResponse.json({
-      success: true,
-      message: `Contraseña actualizada para ${email || userUid}`,
-      user: {
-        uid: userUid,
-        email: email || 'N/A',
-        firestoreExists: userDoc.exists,
-        esAdmin: firestoreData?.esAdmin || false
-      }
-    })
-
   } catch (error: any) {
-    console.error('❌ Error en /api/admin/reset-password:', error.message)
+    console.error('[ERROR] Error en /api/admin/reset-password:', error.message)
     return NextResponse.json(
       { 
         error: error.message,

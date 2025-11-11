@@ -25,7 +25,7 @@ export function NotificationBell({
       {/* Campanita */}
       <button
         onClick={handleTogglePanel}
-        className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        className="relative p-2 text-white hover:text-indigo-100 hover:bg-indigo-500 rounded-lg transition-colors"
         title="Notificaciones"
         aria-label="Abrir notificaciones"
       >

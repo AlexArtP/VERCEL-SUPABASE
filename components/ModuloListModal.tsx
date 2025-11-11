@@ -1,11 +1,11 @@
-import { Modulo } from "@/lib/demoData"
+import type { Modulo } from "@/types"
 import { Edit, Trash2 } from "lucide-react"
 
 interface ModuloListModalProps {
   modulos: Modulo[]
   onClose: () => void
   onEdit: (modulo: Modulo) => void
-  onDelete: (id: number) => void
+  onDelete: (id: string) => void
 }
 
 export function ModuloListModal({ modulos, onClose, onEdit, onDelete }: ModuloListModalProps) {

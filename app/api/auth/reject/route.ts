@@ -1,18 +1,19 @@
 /**
  * ARCHIVO: app/api/auth/reject/route.ts
+ * MIGRADO: De Firebase Admin SDK a Supabase Admin API
+ * 
  * PROPÓSITO: Endpoint para rechazar solicitudes de registro
  * 
  * POST /api/auth/reject
  * Body: {
  *   solicitudId: string,
  *   razon?: string,
- *   adminId?: string (uid del admin que rechaza)
+ *   adminId?: string (uuid del admin que rechaza)
  * }
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getFirestore } from 'firebase-admin/firestore'
-import { initializeFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { createSupabaseAdminClient } from '@/lib/supabaseAdmin'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,17 +34,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Inicializar Firebase Admin
-    console.log('🔧 [/api/auth/reject] Inicializando Firebase Admin...')
-    const admin = initializeFirebaseAdmin()
-    const db = getFirestore(admin.app())
-    console.log('✅ [/api/auth/reject] Admin SDK inicializado')
+    // Inicializar Supabase Admin
+    console.log('🔧 [/api/auth/reject] Inicializando Supabase Admin...')
+    const supabase = createSupabaseAdminClient()
+    console.log('✅ [/api/auth/reject] Admin client inicializado')
 
-    // Obtener solicitud
+    // Obtener solicitud desde tabla solicitudregistro
     console.log('🔍 [/api/auth/reject] Buscando solicitud:', solicitudId)
-    const solicitudDoc = await db.collection('solicitudes').doc(solicitudId).get()
+    const { data: solicitud, error: fetchError } = await supabase
+      .from('solicitudregistro')
+      .select('*')
+      .eq('id', solicitudId)
+      .single()
 
-    if (!solicitudDoc.exists) {
+    if (fetchError || !solicitud) {
       console.error('❌ [/api/auth/reject] Solicitud no encontrada:', solicitudId)
       return NextResponse.json(
         { success: false, message: 'Solicitud no encontrada' },
@@ -51,28 +55,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const solicitud = solicitudDoc.data()
-    console.log('✅ [/api/auth/reject] Solicitud encontrada:', { id: solicitudId, estado: solicitud?.estado })
+    console.log('✅ [/api/auth/reject] Solicitud encontrada:', { id: solicitudId, estado: solicitud.estado })
 
     // Validar estado
-    if (solicitud?.estado !== 'pendiente') {
-      console.error('❌ [/api/auth/reject] Solicitud no está pendiente:', solicitud?.estado)
+    if (solicitud.estado !== 'pendiente') {
+      console.error('❌ [/api/auth/reject] Solicitud no está pendiente:', solicitud.estado)
       return NextResponse.json(
-        { success: false, message: `Solicitud ya está ${solicitud?.estado}` },
+        { success: false, message: `Solicitud ya está ${solicitud.estado}` },
         { status: 400 }
       )
     }
 
-    console.log('🗑️  [/api/auth/reject] Eliminando solicitud...')
-    // Eliminar solicitud de la colección (se rechaza)
-    await db.collection('solicitudes').doc(solicitudId).delete()
+    console.log('🗑️  [/api/auth/reject] Actualizando estado a rechazada...')
+    // Actualizar estado a "rechazada"
+    const { error: updateError } = await supabase
+      .from('solicitudregistro')
+      .update({
+        estado: 'rechazada',
+        razon_rechazo: razon,
+        admin_id: adminId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', solicitudId)
 
-    console.log(`✅ [/api/auth/reject] Solicitud rechazada y eliminada: ${solicitudId}`)
+    if (updateError) {
+      throw updateError
+    }
+
+    console.log(`✅ [/api/auth/reject] Solicitud rechazada: ${solicitudId}`)
 
     return NextResponse.json(
       {
         success: true,
-        message: 'Solicitud rechazada y eliminada exitosamente.',
+        message: 'Solicitud rechazada exitosamente.',
         solicitudId,
       },
       { status: 200 }

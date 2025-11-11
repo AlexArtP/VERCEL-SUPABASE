@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from "react"
 // import { DEMO_DATA } from "@/lib/demoData"  // ❌ COMENTADO: Usando Firestore en lugar de datos demo
 import { useData } from "@/contexts/DataContext"
+import { useSupabasePacientes } from "@/lib/hooks/useSupabasePacientes"
+import { useSupabaseUsuarios } from "@/lib/hooks/useSupabaseUsuarios"
 import { useFirestoreUsers } from "@/lib/useFirestoreUsers"
 import { useNotificationManager } from "@/lib/useNotificationManager"
 import { useAppointmentNotifications } from "@/lib/useAppointmentNotifications"
@@ -35,9 +37,10 @@ import { SolicitudesAuthorizationList } from "./SolicitudesAuthorizationList"
 import { ForcePasswordChangeModal } from "./ForcePasswordChangeModal"
 import { EditUserModal } from "./EditUserModal"
 import { NotificationBell } from "./NotificationBell"
-import type { Modulo } from "@/lib/demoData"
+import { PacientesPanel } from "./PacientesPanel"
+import { useProfesionalesByType } from "@/lib/useProfesionalesByType"
+import type { Modulo } from "@/types"
 import ProfilePanel from './ProfilePanel'
-
 interface MainAppProps {
   currentUser: any
   onLogout: () => void
@@ -48,7 +51,8 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
   const [searchTerm, setSearchTerm] = useState("")
   // ❌ REMOVIDO: const [pacientes] = useState(DEMO_DATA.pacientes)
   // ❌ REMOVIDO: const [citas, setCitas] = useState(DEMO_DATA.citas)
-  const [pacientes, setPacientes] = useState<any[]>([]) // Será llenado desde Firestore
+  // Pacientes ahora proviene de Supabase (cliente anon + RLS) vía hook
+  const { pacientes, loading: pacientesLoading, error: pacientesError } = useSupabasePacientes()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showModuloListModal, setShowModuloListModal] = useState(false)
   const [showConfigMenu, setShowConfigMenu] = useState(false)
@@ -57,22 +61,23 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false)
   const [showEditUserModal, setShowEditUserModal] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
+  const [showChangeEmailModal, setShowChangeEmailModal] = useState(false)
+  const [selectedUserForEmail, setSelectedUserForEmail] = useState<any>(null)
+  const [newEmailValue, setNewEmailValue] = useState("")
+  const [emailChangeLoading, setEmailChangeLoading] = useState(false)
   const [copiedPasswordUserId, setCopiedPasswordUserId] = useState<string | null>(null)
   const [temporaryPasswords, setTemporaryPasswords] = useState<Map<string, string>>(new Map())
-  // 🔥 NUEVO: Obtener usuarios de Firestore en tiempo real
+  
+  // 🔥 NUEVO: Obtener usuarios de Supabase en tiempo real
   const {
-    usuarios: usuariosFirestore,
+    usuarios: usuariosSupabase,
     loading: usuariosLoading,
     error: usuariosError,
-    updateUser,
-    deleteUser: deleteUserFirestore,
-    toggleUserActive,
-    toggleUserAdmin,
-    changeUserRole,
-  } = useFirestoreUsers()
+    refetchUsuarios,
+  } = useSupabaseUsuarios()
 
   // 🔔 NUEVO: Hook de notificaciones para escuchar solicitudes pendientes
-  useNotificationManager(currentUser?.esAdmin || false)
+  useNotificationManager(currentUser?.id || null)
 
   // 🔔 NUEVO: Hook de notificaciones para nuevas citas creadas en agenda del profesional
   useAppointmentNotifications(currentUser?.id || null, true)
@@ -95,8 +100,8 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
     setVisibleRange,
   } = useData()
 
-  // Usar usuarios de Firestore si están disponibles, sino array vacío
-  const usuarios = usuariosFirestore.length > 0 ? usuariosFirestore : []
+  // Usar usuarios de Supabase si están disponibles, sino array vacío
+  const usuarios = usuariosSupabase.length > 0 ? usuariosSupabase : []
 
   // Verificar si el usuario necesita cambiar su contraseña
   useEffect(() => {
@@ -110,6 +115,53 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
       setShowPasswordChangeModal(true)
     }
   }, [currentUser])
+
+  // NUEVO: Refresca los datos del usuario actual desde la BD periódicamente
+  // Esto permite que los cambios de admin se reflejen en tiempo real
+  useEffect(() => {
+    if (!currentUser?.email) return
+    
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/users?email=${encodeURIComponent(currentUser.email)}`)
+        if (response.ok) {
+          const { data: updatedUserData } = await response.json()
+          if (updatedUserData) {
+            // Verificar si esadmin cambió
+            const newEsAdmin = updatedUserData.esadmin === true || updatedUserData.es_admin === true || updatedUserData.esAdmin === true
+            if (newEsAdmin !== currentUser.esAdmin) {
+              console.log(`🔄 [REFRESH] esAdmin cambió de ${currentUser.esAdmin} a ${newEsAdmin}`)
+              console.log(`🔄 [REFRESH] Actualizando currentUser...`)
+              // Actualizar el currentUser en memoria (el componente se re-renderizará)
+              Object.assign(currentUser, {
+                ...updatedUserData,
+                esAdmin: newEsAdmin
+              })
+              // Forzar re-render actualiz ando el estado
+              setEditingUser(null)
+            }
+          }
+        }
+      } catch (err) {
+        // Silenciar errores de refresh
+      }
+    }, 5000) // Cada 5 segundos
+    
+    return () => clearInterval(interval)
+  }, [currentUser?.email])
+
+  // Escuchar evento de actualización de perfil
+  useEffect(() => {
+    const handleProfileUpdated = async () => {
+      console.log('[MainApp] Evento profileUpdated recibido, refrescando usuarios...')
+      await refetchUsuarios()
+    }
+    
+    window.addEventListener('profileUpdated', handleProfileUpdated)
+    return () => {
+      window.removeEventListener('profileUpdated', handleProfileUpdated)
+    }
+  }, [refetchUsuarios])
 
   // Manejar cierre del modal cuando se cambia la contraseña
   const handlePasswordChanged = () => {
@@ -247,24 +299,127 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
     setEditingUser(null)
   }
 
+  // 📧 Función para abrir modal de cambio de email
+  const handleOpenChangeEmail = (usuario: any) => {
+    setSelectedUserForEmail(usuario)
+    setNewEmailValue(usuario.email || "")
+    setShowChangeEmailModal(true)
+  }
+
+  // 📧 Función para cambiar email
+  const handleChangeEmail = async () => {
+    if (!selectedUserForEmail || !newEmailValue.trim()) {
+      alert("Por favor ingresa un nuevo email")
+      return
+    }
+
+    if (newEmailValue === selectedUserForEmail.email) {
+      alert("El nuevo email es igual al actual")
+      return
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(newEmailValue)) {
+      alert("Por favor ingresa un email válido")
+      return
+    }
+
+    setEmailChangeLoading(true)
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('sistema_auth_token') : null
+      let authHeader = ''
+      
+      if (token) {
+        try {
+          const parsed = JSON.parse(token)
+          authHeader = parsed.access_token || token
+        } catch {
+          authHeader = token
+        }
+      }
+
+      const response = await fetch('/api/admin/update-user-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authHeader || ''}`,
+        },
+        body: JSON.stringify({
+          userId: selectedUserForEmail.id,
+          newEmail: newEmailValue.trim(),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al cambiar email')
+      }
+
+      alert(`✅ ${data.message}`)
+      setShowChangeEmailModal(false)
+      setSelectedUserForEmail(null)
+      setNewEmailValue("")
+      
+      // Refrescar la lista de usuarios
+      window.location.reload()
+    } catch (error) {
+      console.error('Error cambiando email:', error)
+      alert(error instanceof Error ? error.message : 'Error al cambiar email')
+    } finally {
+      setEmailChangeLoading(false)
+    }
+  }
+
   // Función para guardar cambios del usuario
   const handleSaveEditUser = async (userId: string, updates: any) => {
     try {
-      await updateUser(userId, updates)
+      console.log(`📝 Guardando cambios del usuario ${userId}:`, updates)
+      console.log(`   Datos del usuario editando:`, editingUser)
+      
+      // Usar userid de Supabase si está disponible, sino usar id
+      const userIdToUpdate = editingUser?.userid || editingUser?.id || userId
+      
+      console.log(`   UserID a actualizar: ${userIdToUpdate}`)
+      console.log(`   Updates a guardar:`, updates)
+      
+      // Guardar cambios en Supabase mediante el endpoint
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userIdToUpdate, ...updates })
+      })
+      
+      if (!res.ok) {
+        throw new Error('Error al actualizar usuario en servidor')
+      }
+      
+      // Refrescar la lista de usuarios
+      await refetchUsuarios()
+      
+      console.log(`✅ Cambios guardados exitosamente`)
     } catch (error: any) {
+      console.error(`❌ Error guardando usuario:`, error)
       throw new Error(error.message || 'Error al actualizar el usuario')
     }
   }
 
   // Función para obtener nombre completo del usuario
   const getNombreCompleto = (usuario: any) => {
+    // Intentar con camelCase primero (compatibility con datos anteriores)
     if (usuario.apellidoPaterno && usuario.apellidoMaterno) {
       return `${usuario.nombre} ${usuario.apellidoPaterno} ${usuario.apellidoMaterno}`
     }
+    // Intentar con snake_case (de profiles table)
+    if (usuario.apellido_paterno && usuario.apellido_materno) {
+      return `${usuario.nombre} ${usuario.apellido_paterno} ${usuario.apellido_materno}`
+    }
+    // Fallback a apellidos
     return `${usuario.nombre} ${usuario.apellidos || ''}`
   }
 
-  const filteredUsuarios = usuarios.filter(
+  const filteredUsuarios = usuariosSupabase.filter(
     (u) => {
       const nombreCompleto = getNombreCompleto(u)
       return (
@@ -274,7 +429,7 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
     }
   )
 
-  const filteredProfesionales = usuarios.filter((u) => u.rol === "profesional")
+  const filteredProfesionales = usuariosSupabase.filter((u: any) => u.rol === "profesional")
 
   // Handler para editar desde el modal de lista
   const handleEditModuloFromList = (modulo: Modulo) => {
@@ -288,23 +443,23 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
   }
 
   // Handler para eliminar desde el modal de lista
-  const handleDeleteModuloFromList = (id: number) => {
+  const handleDeleteModuloFromList = (id: string) => {
     // 🔥 NUEVO: Eliminar de Firebase
     deleteModulo(id).catch(console.error)
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gradient-to-br from-indigo-50 via-indigo-100 to-indigo-50">
       {/* Sidebar */}
-      <aside className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-20' : 'w-64'}`}>
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+      <aside className={`bg-gradient-to-b from-indigo-600 to-indigo-700 shadow-xl flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-20' : 'w-64'}`}>
+        <div className="flex items-center justify-between p-6 border-b border-indigo-500">
           <div>
-            <h1 className={`text-xl font-bold text-gray-900 transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>Sistema Médico</h1>
-            <p className={`text-sm text-gray-600 mt-1 transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>{currentUser.nombre} {currentUser.apellidos}</p>
+            <h1 className={`text-xl font-bold text-white transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>Sistema Médico</h1>
+            {/* El nombre del usuario se muestra ahora en el panel inferior, encima de 'Cerrar Sesión' */}
           </div>
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="ml-2 p-2 rounded hover:bg-gray-100 focus:outline-none"
+            className="ml-2 p-2 rounded hover:bg-indigo-500 focus:outline-none text-white transition-colors"
             title={sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}
           >
             {/* Icono hamburguesa simple */}
@@ -312,76 +467,87 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
           </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-2">
           <button
             onClick={() => setActiveView("dashboard")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              activeView === "dashboard" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+              activeView === "dashboard" ? "bg-white text-indigo-600 shadow-lg" : "text-white hover:bg-indigo-500"
             }`}
           >
-            <Home className="w-5 h-5" />
+            <Home className="w-8 h-8" />
             <span className={`font-medium transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>Dashboard</span>
           </button>
 
           <button
             onClick={() => setActiveView("profile")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              activeView === "profile" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+              activeView === "profile" ? "bg-white text-indigo-600 shadow-lg" : "text-white hover:bg-indigo-500"
             }`}
           >
-            <UserCircle className="w-5 h-5" />
+            <UserCircle className="w-8 h-8" />
             <span className={`font-medium transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>Perfil</span>
           </button>
 
           <button
             onClick={() => setActiveView("professionals")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              activeView === "professionals" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+              activeView === "professionals" ? "bg-white text-indigo-600 shadow-lg" : "text-white hover:bg-indigo-500"
             }`}
           >
-            <Users className="w-5 h-5" />
+            <Users className="w-8 h-8" />
             <span className={`font-medium transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>Profesionales</span>
           </button>
 
           <button
             onClick={() => setActiveView("calendar")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              activeView === "calendar" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+              activeView === "calendar" ? "bg-white text-indigo-600 shadow-lg" : "text-white hover:bg-indigo-500"
             }`}
           >
-            <CalendarIcon className="w-5 h-5" />
+            <CalendarIcon className="w-8 h-8" />
             <span className={`font-medium transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>Calendario</span>
           </button>
 
           <button
             onClick={() => setActiveView("patients")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              activeView === "patients" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+              activeView === "patients" ? "bg-white text-indigo-600 shadow-lg" : "text-white hover:bg-indigo-500"
             }`}
           >
-            <FileText className="w-5 h-5" />
+            <FileText className="w-8 h-8" />
             <span className={`font-medium transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>Pacientes</span>
           </button>
           {/* Configuraciones - Solo botón simple */}
           <button
             onClick={() => setActiveView("config")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              activeView === "config" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-gray-50"
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+              activeView === "config" ? "bg-white text-indigo-600 shadow-lg" : "text-white hover:bg-indigo-500"
             }`}
           >
-            <Settings className="w-5 h-5" />
+            <Settings className="w-8 h-8" />
             <span className={`font-medium transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>
               Configuraciones
             </span>
           </button>
         </nav>
 
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-indigo-500 space-y-3">
+          {/* Panel de usuario: arriba del botón de Cerrar Sesión */}
+          <div className={`w-full flex items-start gap-3 px-3 py-3 rounded-lg bg-indigo-700 bg-opacity-40 ${sidebarCollapsed ? 'justify-center' : 'justify-start'}`}>
+            <div className="w-12 h-12 rounded-full bg-indigo-800 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+              {((currentUser?.nombre?.[0] || '') + (currentUser?.apellidos?.[0] || '')).toUpperCase()}
+            </div>
+            <div className={`flex-1 leading-tight ${sidebarCollapsed ? 'hidden' : ''}`}>
+              <div className="text-white font-semibold text-sm">{currentUser?.nombre} {currentUser?.apellidos}</div>
+              <div className="text-indigo-100 text-xs mt-1">{currentUser?.profesion || currentUser?.rol || currentUser?.role || '—'}</div>
+            </div>
+          </div>
+
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-300 hover:bg-red-600 hover:text-white transition-all"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-8 h-8" />
             <span className={`font-medium transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>Cerrar Sesión</span>
           </button>
         </div>
@@ -390,7 +556,7 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
       {/* Main Content */}
       <main className="flex-1 overflow-auto flex flex-col">
         {/* Top Navbar with Notifications */}
-        <div className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-end sticky top-0 z-40">
+        <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 border-b border-indigo-800 px-8 py-4 flex items-center justify-end sticky top-0 z-40 shadow-lg">
           {currentUser?.esAdmin && (
             <NotificationBell
               onApproveSolicitud={handleApproveSolicitud}
@@ -532,8 +698,8 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
                   </div>
                 </div>
                 <div className="divide-y divide-gray-200">
-                  {filteredProfesionales.map((prof) => (
-                    <div key={prof.id} className="p-6 hover:bg-gray-50">
+                  {filteredProfesionales.map((prof, index) => (
+                    <div key={prof.userid || prof.id || `prof-${index}`} className="p-6 hover:bg-gray-50">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
@@ -626,7 +792,14 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
                   }}
                   onModuloDelete={(ids) => {
                     // 🔥 NUEVO: Eliminar de Firebase
-                    ids.forEach(id => deleteModulo(id).catch(console.error))
+                    // ✅ Validar que no hay IDs nulos
+                    console.log('[MainApp onModuloDelete] IDs recibidos:', ids);
+                    const idsValidos = ids.filter(id => id && String(id).trim() && String(id).toLowerCase() !== 'null');
+                    if (idsValidos.length !== ids.length) {
+                      console.warn(`[MainApp] Se filtraron ${ids.length - idsValidos.length} IDs inválidos de ${ids.length} totales. Inválidos:`, ids.filter(id => !id || !String(id).trim() || String(id).toLowerCase() === 'null'));
+                    }
+                    console.log('[MainApp onModuloDelete] IDs válidos a eliminar:', idsValidos);
+                    idsValidos.forEach(id => deleteModulo(id).catch(console.error))
                   }}
                   onCitaCreate={(cita) => {
                     // 🔥 NUEVO: Guardar cita en Firebase
@@ -634,11 +807,11 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
                   }}
                   onCitaUpdate={(id, cita) => {
                     // 🔥 NUEVO: Actualizar cita en Firebase
-                    updateCita(id, cita).catch(console.error)
+                    updateCita(id as string, cita).catch(console.error)
                   }}
                   onCitaDelete={(id) => {
                     // 🔥 NUEVO: Eliminar cita de Firebase
-                    deleteCita(id).catch(console.error)
+                    deleteCita(id as string).catch(console.error)
                   }}
                   onPlantillaCreate={(plantilla) => {
                     // 🔥 NUEVO: Guardar plantilla en moduloDefinitions
@@ -646,11 +819,11 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
                   }}
                   onPlantillaUpdate={(id, plantilla) => {
                     // 🔥 NUEVO: Actualizar plantilla en moduloDefinitions
-                    updatePlantilla(id, plantilla).catch(console.error)
+                    updatePlantilla(id as string, plantilla).catch(console.error)
                   }}
                   onPlantillaDelete={(id) => {
                     // 🔥 NUEVO: Eliminar plantilla de moduloDefinitions
-                    deletePlantilla(id).catch(console.error)
+                    deletePlantilla(id as string).catch(console.error)
                   }}
                   onVisibleRangeChange={(startISO, endISO) => {
                     try { setVisibleRange(startISO, endISO) } catch {}
@@ -662,54 +835,29 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
 
           {/* Patients View */}
           {activeView === "patients" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-3xl font-bold text-gray-900">Pacientes</h2>
-                <p className="text-gray-600 mt-1">Listado de pacientes registrados</p>
-              </div>
-              <div className="bg-white rounded-lg border border-gray-200">
-                <div className="p-6 border-b border-gray-200">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Buscar paciente..."
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
-                    />
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">RUN</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Teléfono</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Última Visita
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {pacientes.map((paciente) => (
-                        <tr key={paciente.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 text-sm text-gray-900">{paciente.nombre}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{paciente.run}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{paciente.telefono}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{paciente.email}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{paciente.ultimaVisita}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+            <PacientesPanel
+              profesionales={
+                usuariosSupabase
+                  .filter((u: any) => u.profesion)
+                  .map((u: any) => ({
+                    id: u.id || u.userid || '',
+                    nombre: `${u.nombre} ${u.apellido_paterno || u.apellidos || ''}`.trim(),
+                    profesion: u.profesion || '',
+                  }))
+              }
+            />
           )}
 
           {/* Config View */}
-          {activeView === "config" && currentUser.esAdmin && (
+          {activeView === "config" && (() => {
+            console.log(`🔐 [MAINAPP CONFIG] currentUser:`, currentUser)
+            console.log(`   - id: ${currentUser?.id}`)
+            console.log(`   - email: ${currentUser?.email}`)
+            console.log(`   - esAdmin: ${currentUser?.esAdmin}`)
+            console.log(`   - Tipo de esAdmin: ${typeof currentUser?.esAdmin}`)
+            console.log(`   - Check (currentUser.esAdmin): ${currentUser?.esAdmin === true}`)
+            return currentUser?.esAdmin
+          })() && (
             <div className="space-y-6">
               {/* Header */}
               <div>
@@ -719,27 +867,68 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
 
               {/* Tarjeta Grid - 4 Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Card 1: Users */}
-                <div
-                  onClick={() => setConfigView("users")}
-                  className={`p-6 rounded-lg border-2 cursor-pointer transition-all duration-300 ${
-                    configView === "users"
-                      ? "border-purple-500 bg-purple-50 shadow-lg"
-                      : "border-gray-200 bg-white hover:border-purple-300 hover:shadow-md hover:-translate-y-1"
-                  }`}
-                >
-                  <div className="text-4xl mb-3 text-center">👥</div>
-                  <h3 className="font-semibold text-gray-900 text-center mb-1">Gestión de Usuarios</h3>
-                  <p className="text-sm text-gray-600 text-center mb-3">Administra usuarios del sistema</p>
-                  <div className="space-y-1 mb-4">
-                    <div className="text-xs text-gray-600">✓ Crear y editar usuarios</div>
-                    <div className="text-xs text-gray-600">✓ Cambiar roles y permisos</div>
-                    <div className="text-xs text-gray-600">✓ Activar/desactivar cuentas</div>
-                  </div>
-                  <button className="w-full px-3 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 transition-colors">
-                    Abrir →
-                  </button>
-                </div>
+                {/* Card 1: Users - Solo si es Admin */}
+                {(() => {
+                  // Buscar usuario actual en lista de usuarios
+                  // Intentar por id (demo) y userid (Supabase)
+                  const currentUserId = currentUser?.id || currentUser?.userid
+                  const currentUserData = usuariosSupabase.find((u: any) => 
+                    u.id === currentUserId || u.userid === currentUserId
+                  )
+                  
+                  // También revisar si currentUser mismo tiene esAdmin
+                  const isAdmin = currentUser?.esAdmin || 
+                                 currentUserData?.esAdmin || 
+                                 currentUserData?.es_admin || 
+                                 false
+                  
+                  console.log('🔍 [ADMIN CHECK]', {
+                    currentUserId,
+                    currentUserEsAdmin: currentUser?.esAdmin,
+                    foundUserData: currentUserData?.email,
+                    foundUserEsAdmin: currentUserData?.esAdmin || currentUserData?.es_admin,
+                    isAdmin
+                  })
+                  
+                  if (!isAdmin) {
+                    return (
+                      <div className="p-6 rounded-lg border-2 border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed">
+                        <div className="text-4xl mb-3 text-center opacity-50">👥</div>
+                        <h3 className="font-semibold text-gray-600 text-center mb-1">Gestión de Usuarios</h3>
+                        <p className="text-sm text-gray-500 text-center mb-3">Solo administradores</p>
+                        <div className="space-y-1 mb-4">
+                          <div className="text-xs text-gray-500">✗ No tienes permisos</div>
+                        </div>
+                        <button disabled className="w-full px-3 py-2 bg-gray-400 text-white text-sm rounded opacity-50 cursor-not-allowed">
+                          Bloqueado 🔒
+                        </button>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div
+                      onClick={() => setConfigView("users")}
+                      className={`p-6 rounded-lg border-2 cursor-pointer transition-all duration-300 ${
+                        configView === "users"
+                          ? "border-purple-500 bg-purple-50 shadow-lg"
+                          : "border-gray-200 bg-white hover:border-purple-300 hover:shadow-md hover:-translate-y-1"
+                      }`}
+                    >
+                      <div className="text-4xl mb-3 text-center">👥</div>
+                      <h3 className="font-semibold text-gray-900 text-center mb-1">Gestión de Usuarios</h3>
+                      <p className="text-sm text-gray-600 text-center mb-3">Administra usuarios del sistema</p>
+                      <div className="space-y-1 mb-4">
+                        <div className="text-xs text-gray-600">✓ Crear y editar usuarios</div>
+                        <div className="text-xs text-gray-600">✓ Cambiar roles y permisos</div>
+                        <div className="text-xs text-gray-600">✓ Activar/desactivar cuentas</div>
+                      </div>
+                      <button className="w-full px-3 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 transition-colors">
+                        Abrir →
+                      </button>
+                    </div>
+                  )
+                })()}
 
                 {/* Card 2: Database */}
                 <div
@@ -863,7 +1052,7 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
                           </thead>
                           <tbody className="divide-y divide-gray-200">
                             {filteredUsuarios.map((usuario) => (
-                              <tr key={usuario.id} className="hover:bg-gray-50">
+                              <tr key={usuario.userid} className="hover:bg-gray-50">
                                 <td className="px-4 py-4">
                                   <div>
                                     <p className="text-sm font-medium text-gray-900">
@@ -879,12 +1068,19 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
                                   </div>
                                 </td>
                                 <td className="px-4 py-4">
-                                  <p className="text-sm text-gray-900">{usuario.run || 'N/A'}</p>
+                                  <p className="text-sm text-gray-900">{usuario.run || usuario.apellidos || 'N/A'}</p>
                                 </td>
                                 <td className="px-4 py-4">
                                   <select
                                     value={usuario.rol || 'profesional'}
-                                    onChange={(e) => changeUserRole(String(usuario.id), e.target.value)}
+                                    onChange={(e) => {
+                                      // Guardar cambio de rol
+                                      fetch('/api/profile', {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ id: usuario.userid, rol: e.target.value })
+                                      }).then(() => refetchUsuarios()).catch(console.error)
+                                    }}
                                     className="text-sm border border-gray-300 rounded px-2 py-1"
                                   >
                                     <option value="profesional">Profesional</option>
@@ -908,12 +1104,19 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
                                         currentUserId = localStorage.getItem('usuario_id')
                                       }
                                     } catch {}
-                                    const isSelf = String(usuario.id) === String(currentUserId)
+                                    const isSelf = String(usuario.userid) === String(currentUserId)
                                     return (
                                       <input
                                         type="checkbox"
-                                        checked={usuario.esAdmin || false}
-                                        onChange={() => toggleUserAdmin(String(usuario.id))}
+                                        checked={usuario.esadmin === true || usuario.es_admin === true || usuario.esAdmin === true}
+                                        onChange={() => {
+                                          const newValue = !(usuario.esadmin === true || usuario.es_admin === true || usuario.esAdmin === true)
+                                          fetch('/api/profile', {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ id: usuario.userid, esadmin: newValue })
+                                          }).then(() => refetchUsuarios()).catch(console.error)
+                                        }}
                                         disabled={isSelf}
                                         title={isSelf ? 'No puedes quitarte tu propio permiso de administrador' : 'Cambiar estado de administrador'}
                                         className="w-4 h-4 text-blue-600 rounded disabled:opacity-50"
@@ -937,27 +1140,39 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
                                         currentUserId = localStorage.getItem('usuario_id')
                                       }
                                     } catch {}
-                                    const isSelf = String(usuario.id) === String(currentUserId)
+                                    const isSelf = String(usuario.userid) === String(currentUserId)
                                     const handleClick = () => {
                                       if (isSelf) return
-                                      toggleUserActive(String(usuario.id))
+                                      const newValue = !usuario.activo
+                                      fetch('/api/profile', {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ id: usuario.userid, activo: newValue })
+                                      }).then(() => refetchUsuarios()).catch(console.error)
                                     }
                                     return (
                                       <button
                                         onClick={handleClick}
                                         disabled={isSelf}
-                                        title={isSelf ? 'No puedes desactivar tu propia cuenta' : (usuario.activo ? 'Desactivar usuario' : 'Activar usuario')}
+                                        title={isSelf ? 'No puedes desactivar tu propia cuenta' : (usuario.activo !== false ? 'Desactivar usuario' : 'Activar usuario')}
                                         className={`px-3 py-1 text-xs rounded-full ${
-                                          usuario.activo ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                                          usuario.activo !== false ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
                                         } ${isSelf ? 'opacity-60 cursor-not-allowed' : ''}`}
                                       >
-                                        {usuario.activo ? "Activo" : "Inactivo"}
+                                        {usuario.activo !== false ? "Activo" : "Inactivo"}
                                       </button>
                                     )
                                   })()}
                                 </td>
                                 <td className="px-4 py-4">
                                   <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => handleOpenChangeEmail(usuario)}
+                                      className="p-1 text-purple-600 hover:bg-purple-50 rounded"
+                                      title="Cambiar email"
+                                    >
+                                      <Mail className="w-4 h-4" />
+                                    </button>
                                     <button
                                       onClick={() => handleOpenEditUser(usuario)}
                                       className="p-1 text-blue-600 hover:bg-blue-50 rounded"
@@ -966,9 +1181,9 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
                                       <Edit className="w-4 h-4" />
                                     </button>
                                     <button
-                                      onClick={() => handleRegenerateAndCopyPassword(String(usuario.id))}
+                                      onClick={() => handleRegenerateAndCopyPassword(String(usuario.userid))}
                                       className={`p-1 rounded transition-all ${
-                                        copiedPasswordUserId === String(usuario.id)
+                                        copiedPasswordUserId === String(usuario.userid)
                                           ? 'bg-green-100 text-green-600'
                                           : 'text-blue-600 hover:bg-blue-50'
                                       }`}
@@ -977,7 +1192,16 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
                                       <Copy className="w-4 h-4" />
                                     </button>
                                     <button
-                                      onClick={() => deleteUserFirestore(String(usuario.id))}
+                                      onClick={() => {
+                                        if (confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
+                                          // Por ahora, solo desactivamos
+                                          fetch('/api/profile', {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ id: usuario.userid, activo: false })
+                                          }).then(() => refetchUsuarios()).catch(console.error)
+                                        }
+                                      }}
                                       className="p-1 text-red-600 hover:bg-red-50 rounded"
                                       title="Eliminar usuario"
                                     >
@@ -1044,6 +1268,7 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
               )}
             </div>
           )}
+
           {showModuloListModal && (
             <ModuloListModal
               modulos={modulos.filter((m) => m.profesionalId === currentUser.id)}
@@ -1066,6 +1291,73 @@ export function MainApp({ currentUser, onLogout }: MainAppProps) {
             onClose={handleCloseEditUser}
             onSave={handleSaveEditUser}
           />
+          
+          {/* Modal para cambiar email */}
+          {showChangeEmailModal && selectedUserForEmail && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full">
+                <div className="flex items-center gap-3 mb-4">
+                  <Mail className="w-5 h-5 text-purple-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">Cambiar Email</h2>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Usuario
+                    </label>
+                    <p className="text-sm text-gray-600">
+                      {selectedUserForEmail.nombre} {selectedUserForEmail.apellidos || selectedUserForEmail.apellido_paterno || ''}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Actual
+                    </label>
+                    <p className="text-sm text-gray-600 break-all">
+                      {selectedUserForEmail.email}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nuevo Email
+                    </label>
+                    <input
+                      type="email"
+                      value={newEmailValue}
+                      onChange={(e) => setNewEmailValue(e.target.value)}
+                      placeholder="nuevo@email.com"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      disabled={emailChangeLoading}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowChangeEmailModal(false)
+                      setSelectedUserForEmail(null)
+                      setNewEmailValue("")
+                    }}
+                    disabled={emailChangeLoading}
+                    className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleChangeEmail}
+                    disabled={emailChangeLoading}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {emailChangeLoading ? "Cambiando..." : "Cambiar Email"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           </div>
         </div>
       </main>

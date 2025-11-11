@@ -15,7 +15,6 @@ const RegistrationModalSuspense = dynamic(
   { ssr: false, loading: () => null }
 )
 import { DEMO_DATA } from "@/lib/demoData"
-import { loginUser as firebaseLoginUser } from "@/lib/firebaseConfig"
 import { User, Lock, Mail, AlertCircle } from "lucide-react"
 
 export default function Home() {
@@ -51,21 +50,50 @@ export default function Home() {
         try {
           const token = JSON.parse(firebaseToken)
           if (token && token.id && token.email) {
+            console.log(`🔐 [RESTAURAR] Encontrado token en localStorage`)
+            console.log(`   - id: ${token.id}`)
+            console.log(`   - email: ${token.email}`)
+            console.log(`   - token.esAdmin: ${token.esAdmin}`)
+            console.log(`   - Tipo de esAdmin: ${typeof token.esAdmin}`)
+            console.log(`   - token.es_admin: ${token.es_admin}`)
+            console.log(`   - Tipo de es_admin: ${typeof token.es_admin}`)
+            
             // Es un token del login de Firebase
+            const esAdminValue = token.esAdmin || token.es_admin || false
+            console.log(`🔐 [RESTAURAR] esAdminValue final: ${esAdminValue}`)
+            
             const user = {
               id: token.id,
               email: token.email,
               nombre: token.nombre,
               apellidos: token.apellidos,
               rol: token.rol,
-              esAdmin: token.esAdmin,
+              esAdmin: esAdminValue,
               cambioPasswordRequerido: token.cambioPasswordRequerido || false,
               activo: true,
               password: 'N/A', // No se guarda en el token
               password_hash: '', // No aplica
             }
+            console.log(`✅ [RESTAURAR] User restaurado desde localStorage:`, user)
             setCurrentUser(user)
             setIsAuthenticated(true)
+            
+            // Restaurar la sesión de Supabase con el JWT para que RLS funcione (async IIFE)
+            if (token.token) {
+              (async () => {
+                try {
+                  const { setSupabaseSession } = await import('@/lib/supabaseClient')
+                  const sessionSet = await setSupabaseSession(token.token)
+                  if (sessionSet) {
+                    console.log(`✅ [RESTAURAR] Sesión Supabase restaurada para RLS`)
+                  } else {
+                    console.warn(`⚠️ [RESTAURAR] No se pudo restaurar la sesión Supabase`)
+                  }
+                } catch (sessionErr) {
+                  console.error(`❌ [RESTAURAR] Error al restaurar sesión Supabase:`, sessionErr)
+                }
+              })()
+            }
             return
           }
         } catch (e) {
@@ -100,10 +128,10 @@ export default function Home() {
     e.preventDefault()
     setError("")
 
-    // Primero intentar login con Firebase Auth (nuevo sistema)
+    // Intentar login con Supabase Auth (nuevo sistema)
     if (loginForm.email && loginForm.password) {
       try {
-        const response = await fetch('/api/auth/firebase-login', {
+        const response = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -115,56 +143,96 @@ export default function Home() {
         const data = await response.json()
 
         if (response.ok && data.user) {
-          console.log('✅ Login exitoso con Firebase Auth')
-          console.log('🔐 Data recibida del servidor:', data)
-          console.log('🔐 cambioPasswordRequerido:', data.user.cambioPasswordRequerido)
-          // Iniciar sesión también en Firebase Auth del cliente para habilitar request.auth en Firestore rules
-          try {
-            await firebaseLoginUser(loginForm.email, loginForm.password)
-            console.log('✅ Sesión creada en Firebase Auth (cliente)')
-          } catch (e) {
-            console.warn('⚠️ No se pudo autenticar en Firebase Auth del cliente. Firestore puede fallar por permisos.', e)
-          }
-          setCurrentUser({
-            id: data.user.uid,
+          console.log('✅ [CLIENTE] Login exitoso con Supabase Auth')
+          console.log('🔐 [CLIENTE] Data COMPLETA recibida del servidor:')
+          console.log(JSON.stringify(data, null, 2))
+          console.log(`🔐 [CLIENTE] data.user.es_admin = ${data.user.es_admin}`)
+          console.log(`🔐 [CLIENTE] Tipo: ${typeof data.user.es_admin}`)
+          console.log(`🔐 [CLIENTE] TODAS LAS PROPIEDADES DE data.user:`)
+          console.log(JSON.stringify(data.user, null, 2))
+          
+          const esAdminValue = Boolean(data.user.es_admin)
+          console.log(`🔐 [CLIENTE] esAdminValue después de Boolean: ${esAdminValue}`)
+          
+          const userObject = {
+            id: data.user.id,
             email: data.user.email,
             nombre: data.user.nombre || data.user.email,
             apellidoPaterno: data.user.apellidoPaterno || '',
             apellidoMaterno: data.user.apellidoMaterno || '',
             profesion: data.user.profesion || '',
+            run: data.user.run || '',
+            telefono: data.user.telefono || '',
             rol: data.user.rol || 'administrativo',
-            esAdmin: data.user.esAdmin || false,
+            esAdmin: esAdminValue,
             activo: data.user.activo !== false,
-            cambioPasswordRequerido: data.user.cambioPasswordRequerido || false
-          })
+            cambioPasswordRequerido: false
+          }
+          
+          console.log(`🔐 [CLIENTE] currentUser después de setCurrentUser:`)
+          console.log(`   - id: ${userObject.id}`)
+          console.log(`   - email: ${userObject.email}`)
+          console.log(`   - esAdmin: ${userObject.esAdmin}`)
+          console.log(`   - Tipo de esAdmin: ${typeof userObject.esAdmin}`)
+          
+          setCurrentUser(userObject)
           setIsAuthenticated(true)
-          try { 
-            localStorage.setItem('sistema_auth_token', JSON.stringify({
-              token: data.token,
-              userId: data.user.uid,
-              id: data.user.uid,
-              email: data.user.email,
-              nombre: data.user.nombre,
-              apellidoPaterno: data.user.apellidoPaterno,
-              apellidoMaterno: data.user.apellidoMaterno,
-              profesion: data.user.profesion || '',
-              rol: data.user.rol || 'administrativo',
-              esAdmin: data.user.esAdmin,
-              cambioPasswordRequerido: data.user.cambioPasswordRequerido,
-              expiry: Date.now() + 8 * 60 * 60 * 1000
-            }))
-          } catch {}
+          
+          const tokenToSave = {
+            token: data.token,
+            userId: data.user.id,
+            id: data.user.id,
+            email: data.user.email,
+            nombre: data.user.nombre,
+            apellidoPaterno: data.user.apellidoPaterno,
+            apellidoMaterno: data.user.apellidoMaterno,
+            profesion: data.user.profesion || '',
+            run: data.user.run || '',
+            telefono: data.user.telefono || '',
+            rol: data.user.rol || 'administrativo',
+            esAdmin: esAdminValue,
+            expiry: Date.now() + 8 * 60 * 60 * 1000
+          }
+          console.log(`💾 [CLIENTE] Guardando token en localStorage:`)
+          console.log(`   - esAdmin en token: ${tokenToSave.esAdmin}`)
+          try {
+            const storage = typeof window !== 'undefined' ? window.localStorage : null
+            if (storage) {
+              storage.setItem('sistema_auth_token', JSON.stringify(tokenToSave))
+            }
+          } catch (storageErr) {
+            console.error('Error guardando en localStorage:', storageErr)
+          }
+          
+          // Configurar la sesión de Supabase con el JWT para que RLS funcione (async IIFE)
+          try {
+            (async () => {
+              try {
+                const { setSupabaseSession } = await import('@/lib/supabaseClient')
+                const sessionSet = await setSupabaseSession(data.token)
+                if (sessionSet) {
+                  console.log(`✅ [CLIENTE] Sesión Supabase configurada para RLS`)
+                } else {
+                  console.warn(`⚠️ [CLIENTE] No se pudo configurar la sesión Supabase`)
+                }
+              } catch (sessionErr) {
+                console.error(`❌ [CLIENTE] Error al configurar sesión Supabase:`, sessionErr)
+              }
+            })()
+          } catch (err) {
+            console.error(`❌ [CLIENTE] Error al guardar token o sesión:`, err)
+          }
           return
         } else {
-          // Si falla con Firebase, mostrar error específico
+          // Si falla con Supabase, mostrar error específico
           const errorMsg = data.error || "Error al iniciar sesión"
           console.log('❌ Login fallido:', errorMsg)
           setError(errorMsg)
           return
         }
       } catch (err: any) {
-        console.log('⚠️ Firebase login fallió, intentando con datos demo...')
-        // Si falla Firebase, intentar con datos demo como fallback
+        console.log('⚠️ Supabase login fallió, intentando con datos demo...')
+        // Si falla Supabase, intentar con datos demo como fallback
       }
     }
 

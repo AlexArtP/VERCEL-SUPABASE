@@ -1,31 +1,50 @@
 /**
  * ARCHIVO: app/api/admin/list-users/route.ts
- * PROPÓSITO: Listar todos los usuarios de Firestore (para debugging)
+ * PROPÓSITO: Listar todos los usuarios de Supabase Auth + profiles (para debugging)
+ * 
+ * MIGRADO: De Firebase Admin SDK a Supabase Admin API
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { initializeFirebaseAdmin } from '@/lib/firebaseAdmin'
-import { getFirestore } from 'firebase-admin/firestore'
+import { listAllUsers, getUserProfile } from '@/lib/supabaseAdmin'
 
 export async function GET(request: NextRequest) {
   try {
-    const admin = initializeFirebaseAdmin()
-    const db = getFirestore(admin.app())
+    console.log('📋 Listando todos los usuarios de Supabase...')
 
-    console.log('📋 Listando todos los usuarios de Firestore...')
+    // Obtener usuarios de Auth
+    const { users: authUsers } = await listAllUsers(1000)
 
-    const usuariosSnapshot = await db.collection('usuarios').get()
-
-    const usuarios = usuariosSnapshot.docs.map(doc => ({
-      id: doc.id,
-      email: doc.data().email,
-      nombre: doc.data().nombre,
-      esAdmin: doc.data().esAdmin,
-      activo: doc.data().activo,
-      rol: doc.data().rol,
-      profesion: doc.data().profesion,
-      createdAt: doc.data().createdAt
-    }))
+    // Enriquecer con datos del perfil
+    const usuarios = await Promise.all(
+      authUsers.map(async (authUser) => {
+        try {
+          const profile = await getUserProfile(authUser.id)
+          return {
+            id: authUser.id,
+            email: authUser.email,
+            nombre: profile?.full_name || authUser.user_metadata?.display_name || 'N/A',
+            esAdmin: profile?.is_admin || false,
+            activo: !authUser.deleted_at,
+            rol: profile?.role || 'paciente',
+            profesion: profile?.profession || null,
+            createdAt: authUser.created_at,
+          }
+        } catch (err) {
+          console.warn(`⚠️ Error obteniendo perfil para ${authUser.email}:`, err)
+          return {
+            id: authUser.id,
+            email: authUser.email,
+            nombre: authUser.user_metadata?.display_name || 'N/A',
+            esAdmin: false,
+            activo: !authUser.deleted_at,
+            rol: 'paciente',
+            profesion: null,
+            createdAt: authUser.created_at,
+          }
+        }
+      })
+    )
 
     console.log(`✅ ${usuarios.length} usuarios encontrados`)
 

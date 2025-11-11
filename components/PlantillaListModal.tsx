@@ -2,14 +2,15 @@
 
 import { useState } from "react"
 import { X, Plus, Trash2, Edit } from "lucide-react"
-import type { PlantillaModulo, Modulo } from "@/lib/demoData"
+import type { Modulo } from "@/types"
+import type { PlantillaModulo } from "@/lib/demoData"
 
 interface PlantillaListModalProps {
-  plantillas: PlantillaModulo[]
+  plantillas: any[]
   modulos: Modulo[] // Para saber cuántas instancias hay de cada plantilla
   onClose: () => void
-  onEdit: (plantilla: PlantillaModulo) => void
-  onDelete: (plantillaId: number) => void
+  onEdit: (plantilla: any) => void
+  onDelete: (plantillaId: string) => void
   currentUser?: { id: string; rol: string; [key: string]: any }
   selectedProfesionalId?: string | null
 }
@@ -23,17 +24,17 @@ export function PlantillaListModal({
   currentUser,
   selectedProfesionalId,
 }: PlantillaListModalProps) {
-  const [expandedId, setExpandedId] = useState<number | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   // Helpers para control de acceso
   const isAdmin = currentUser?.rol === "administrativo"
   const isProfessional = currentUser?.rol === "profesional"
-  const isOwnPlantilla = (plantilla: PlantillaModulo) => {
+  const isOwnPlantilla = (plantilla: any) => {
     return String(plantilla.profesionalId) === currentUser?.id
   }
 
-  const canEdit = (plantilla: PlantillaModulo): boolean => {
+  const canEdit = (plantilla: any): boolean => {
     if (isAdmin) return true
     if (isProfessional && isOwnPlantilla(plantilla)) return true
     return false
@@ -88,7 +89,7 @@ export function PlantillaListModal({
                       <h4 className="font-semibold text-gray-900">{plantilla.tipo}</h4>
                       <div className="flex gap-4 mt-1 text-sm text-gray-600">
                         <span>⏱ {plantilla.duracion} min</span>
-                        <span>📋 {plantilla.estamento}</span>
+                        <span>📋 {plantilla.profesion || plantilla.estamento}</span>
                         <span className="text-blue-600 font-medium">
                           {instanceCount} instancia{instanceCount !== 1 ? "s" : ""}
                         </span>

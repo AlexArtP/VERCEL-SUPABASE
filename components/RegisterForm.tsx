@@ -13,6 +13,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { PatientRegisterModal } from './PatientRegisterModal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -78,6 +79,7 @@ export function RegisterForm({ onSubmit, onCancel, onSuccess }: RegisterFormProp
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showPatientModal, setShowPatientModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
 
@@ -99,9 +101,7 @@ export function RegisterForm({ onSubmit, onCancel, onSuccess }: RegisterFormProp
     if (!formData.profesion)
       newErrors.profesion = 'Profesión es requerida'
 
-    if (!formData.email.trim())
-      newErrors.email = 'Email es requerido'
-    else if (!validateEmail(formData.email))
+    if (formData.email && !validateEmail(formData.email))
       newErrors.email = 'Email inválido'
 
     if (formData.telefono && !validatePhone(formData.telefono))
@@ -515,6 +515,15 @@ export function RegisterForm({ onSubmit, onCancel, onSuccess }: RegisterFormProp
 
           {/* Botones */}
           <div className="flex gap-3 justify-end pt-4 border-t">
+            <button
+              type="button"
+              onClick={() => setShowPatientModal(true)}
+              className="px-3 py-1 border rounded text-sm mr-auto"
+            >
+              Registrar paciente
+            </button>
+            {/** Modal para registrar pacientes desde este formulario (útil en demos/admin) */}
+            <PatientRegisterModal open={showPatientModal} onClose={() => setShowPatientModal(false)} onCreated={() => { /* noop */ }} />
             <Button
               type="button"
               variant="outline"
