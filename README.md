@@ -16,7 +16,7 @@ Sistema completo de gestión de citas médicas construido con **Next.js 15**, **
 
 ### ✨ Características Principales
 
-✅ **Autenticación Segura** - Con Supabase Auth y Firebase  
+✅ **Autenticación Segura** - Con Supabase Auth  
 ✅ **Gestión de Usuarios** - Profesionales, administrativos, recepcionistas  
 ✅ **Perfil Profesional** - Edición completa con validaciones  
 ✅ **Gestión de Pacientes** - CRUD con búsqueda y filtrado  
@@ -60,11 +60,6 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
 
 # Service Role Key (SOLO para servidor)
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
-
-# Opcional: Firebase
-NEXT_PUBLIC_FIREBASE_API_KEY=...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
 ```
 
 ### 4. Ejecutar en Desarrollo
