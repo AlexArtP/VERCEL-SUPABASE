@@ -5,7 +5,26 @@
  * Comprueba que tu configuración es correcta antes de Vercel Deploy
  */
 
+const fs = require('fs');
+const path = require('path');
 const https = require('https');
+
+// Cargar .env.local manualmente
+function loadEnv() {
+  const envPath = path.join(process.cwd(), '.env.local');
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, 'utf8');
+    const lines = envContent.split('\n');
+    lines.forEach(line => {
+      const match = line.match(/^([^=]+)=(.*)$/);
+      if (match && !process.env[match[1]]) {
+        process.env[match[1]] = match[2];
+      }
+    });
+  }
+}
+
+loadEnv();
 
 const config = {
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://spbkmtvpvfdhnofqkndb.supabase.co',
